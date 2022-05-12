@@ -4,6 +4,7 @@ from scipy import signal
 import xarray as xr
 import joblib
 import pandas as pd
+import mne
 
 def notch(sig, fs):
     sig_notched = mne.filter.notch_filter(sig, Fs=fs, freqs=np.arange(50,101,50),  verbose=False)
