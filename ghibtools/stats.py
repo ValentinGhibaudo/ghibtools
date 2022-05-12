@@ -59,9 +59,7 @@ def parametric(df, predictor, outcome):
     return parametricity
 
 
-def guidelines(df, predictor, outcome, design):
-    
-    parametricity = parametric(df, predictor, outcome)
+def guidelines(df, predictor, outcome, design, parametricity):
         
     n_groups = len(list(set(df[predictor])))
     
@@ -138,9 +136,39 @@ def pg_compute_pre(df, predictor, outcome, test, subject=None, show = False):
     else:
         es = res[es_label].values[0]
     
-    results = {'p':pval, 'es':es, 'es_label':es_label}
+    es_interp = es_interpretation(es_label, es)
+    results = {'p':pval, 'es':es, 'es_label':es_label, 'es_interp':es_interp}
       
     return results
+
+def es_interpretation(es_label , es_value):
+
+    if es_label == 'cohen-d' or es_label == 'CLES':
+        if es_value < 0.2:
+            interpretation = 'VS'
+        elif es_value >= 0.2 and es_value < 0.5:
+            interpretation = 'S'
+        elif es_value >= 0.5 and es_value < 0.8:
+            interpretation = 'M'
+        elif es_value >= 0.8 and es_value < 1.3:
+            interpretation = 'L'
+        else:
+            interpretation = 'VL'
+    
+    elif es_label == 'np2':
+        if es_value < 0.01:
+            interpretation = 'VS'
+        elif es_value >= 0.01 and es_value < 0.06:
+            interpretation = 'S'
+        elif es_value >= 0.06 and es_value < 0.14:
+            interpretation = 'M'
+        else:
+            interpretation = 'L'
+            
+    elif es_label is None:
+        interpretation = None
+                
+    return interpretation
 
 def get_stats_tests():
     
@@ -239,16 +267,22 @@ def pval_stars(pval):
         stars = '*'
     elif pval < 0.01 and pval >= 0.001:
         stars = '**'
-    elif pval < 0.001:
+    elif pval < 0.001 and pval >= 0.0001:
         stars = '***'
     elif pval < 0.0001:
         stars = '****'
     else:
         stars = 'ns'
     return stars
-      
 
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box'):
+
+def transform_data(df, outcome):
+    df_transfo = df.copy()
+    df_transfo[outcome] = np.log(df[outcome])
+    return df_transfo     
+
+
+def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=True, verbose=True):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -256,17 +290,36 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
     N = df[predictor].value_counts()[0]
     ngroups = len(list(df[predictor].unique()))
     
-    tests = guidelines(df, predictor, outcome, design)
+    parametricity_pre_transfo = parametric(df, predictor, outcome)
+    
+    if transform:
+        if not parametricity_pre_transfo:
+            df = transform_data(df, outcome)
+            parametricity_post_transfo = parametric(df, predictor, outcome)
+            parametricity = parametricity_post_transfo
+            if verbose:
+                if parametricity_post_transfo:
+                    print('Successfull transformation')
+                else:
+                    print('Un-successfull transformation')
+        else:
+            parametricity = parametricity_pre_transfo
+    else:
+        parametricity = parametricity_pre_transfo
+    
+    tests = guidelines(df, predictor, outcome, design, parametricity)
+    
     pre_test = tests['pre']
     post_test = tests['post']
     results = pg_compute_pre(df, predictor, outcome, pre_test, subject)
-    pval = round(results['p'], 3)
+    pval = round(results['p'], 4)
     
     if not results['es'] is None:
         es = round(results['es'], 3)
     else:
         es = results['es']
     es_label = results['es_label']
+    es_interpretation = results['es_interp']
     
     order = list(df[predictor].unique())
     
@@ -278,8 +331,85 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
      
     elif mode == 'distribution':
-        ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
+        # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
+        ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax)
         
-    ax.set_title(f'Effect of {predictor} on {outcome} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es}')
+    if es_label is None:
+        ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
+    else:
+        ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_interpretation})')
         
     return ax
+
+
+def virer_outliers(df, predictor, outcome, deviations = 5):
+    
+    groups = list(df[predictor].unique())
+    
+    group1 = df[df[predictor] == groups[0]][outcome]
+    group2 = df[df[predictor] == groups[1]][outcome]
+    
+    outliers_trop_hauts_g1 = group1[(group1 > group1.std() * deviations) ]
+    outliers_trop_bas_g1 = group1[(group1 < group1.std() * -deviations) ]
+    
+    outliers_trop_hauts_g2 = group2[(group2 > group1.std() * deviations) ]
+    outliers_trop_bas_g2 = group2[(group2 < group1.std() * -deviations) ]
+    
+    len_h_g1 = outliers_trop_hauts_g1.size
+    len_b_g1 = outliers_trop_bas_g1.size
+    len_h_g2 = outliers_trop_hauts_g2.size
+    len_b_g2 = outliers_trop_bas_g2.size
+    
+    return len_b_g2
+
+
+def outlier_exploration(df, predictor, labels, outcome, figsize = (16,8)):
+                 
+    g1 = df[df[predictor] == labels[0]][outcome]
+    g2 = df[df[predictor] == labels[1]][outcome]
+
+    fig, axs = plt.subplots(ncols = 2, figsize = figsize, constrained_layout = True)
+    fig.suptitle('Outliers exploration', fontsize = 20)
+
+    ax = axs[0]
+    ax.scatter(g1 , g2)
+    ax.set_title(f'Raw {labels[0]} vs {labels[1]} scatterplot')
+    ax.set_ylabel(f'{outcome} in condition {labels[0]}')
+    ax.set_xlabel(f'{outcome} in condition {labels[1]}')
+
+    g1log = np.log(g1)
+    g2log = np.log(g2)
+
+    ax = axs[1]
+    ax.scatter(g1log, g2log)
+    ax.set_title(f'Log-log {labels[0]} vs {labels[1]} scatterplot')
+    ax.set_ylabel(f'{outcome} in condition {labels[0]}')
+    ax.set_xlabel(f'{outcome} in condition {labels[1]}')
+
+    plt.show()
+    
+    
+def qqplot(df, predictor, outcome, figsize = (10,15)):
+    
+    labels = list(df[predictor].unique())
+    ngroups = len(labels) 
+    
+    groupe = {}
+    
+    for label in labels: 
+        groupe[label] = {
+                         'log' : np.log(df[df[predictor] == label][outcome]), 
+                         'inverse' : 1 / (df[df[predictor] == label][outcome]),
+                         'none' : df[df[predictor] == label][outcome]
+                        }
+     
+    fig, axs = plt.subplots(nrows = 3, ncols = ngroups, figsize = figsize, constrained_layout = True)
+    fig.suptitle(f'QQ-PLOT', fontsize = 20)
+    
+    for col, label in enumerate(labels): 
+        for row, transform in enumerate(['none','log','inverse']):
+            ax = axs[row, col]
+            ax = pg.qqplot(groupe[label][transform], ax=ax)
+            ax.set_title(f'Condition : {label} ; data are {transform} transformed')
+        
+    plt.show()
