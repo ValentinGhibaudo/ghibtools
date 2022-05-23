@@ -672,7 +672,7 @@ def convolve_scalogram(sig, wf):
     return wt
 
 def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0):
-    wf = generate_wavelet_fourier(len_wavelet=sig.size, f_start=10, f_stop=20, delta_freq=step, sampling_rate=srate, f0=f0, normalisation=normalisation)
+    wf = generate_wavelet_fourier(len_wavelet=sig.size, f_start=10, f_stop=20, delta_freq=delta_freq, sampling_rate=srate, f0=f0, normalisation=normalisation)
     wt = convolve_scalogram(sig, wf)
     tf_matrix = np.abs(wt).T # axis 0 = freqs, axis 1 = time
     return tf_matrix 
