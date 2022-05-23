@@ -682,3 +682,20 @@ def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0, retur
         return da_matrix
     else:
         return tf_matrix 
+    
+def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio = 0.4):
+    # da = 3d da (chan * freqs * time)
+    clipped_times, times_to_cycles, cycles, cycle_points, deformed_data = deform_to_cycle_template(data = da.loc[chan,:,:].values.T,
+                                                                                                   times = da.coords['time'].values , 
+                                                                                                   cycle_times=rsp_features[['inspi_time','expi_time']].values, 
+                                                                                                   nb_point_by_cycle=nb_point_by_cycle, 
+                                                                                                   inspi_ratio = inspi_ratio)
+    deformed = deformed_data.T
+    
+    shape = (cycles.size , deformed.shape[0] , nb_point_by_cycle)
+    data = np.zeros(shape)
+    da_stretch_cycle = xr.DataArray(data=data , dims = ['cycle','freqs','point'], coords = {'cycle' : cycles, 'freqs': da.coords['freqs'].values , 'point':np.arange(0,nb_point_by_cycle,1)})
+    for cycle in cycles:
+        data_of_the_cycle = deformed[:,cycle*nb_point_by_cycle:(cycle+1)*nb_point_by_cycle]
+        da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
+    return da_stretch_cycle
