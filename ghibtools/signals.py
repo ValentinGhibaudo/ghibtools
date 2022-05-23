@@ -624,3 +624,55 @@ def detect_respiration_cycles(resp_sig, sampling_rate, t_start = 0., output = 'i
     
     return cycles
 
+
+def generate_wavelet_fourier(len_wavelet, f_start, f_stop, delta_freq, sampling_rate, f0, normalisation):
+    """
+    Compute the wavelet coefficients at all scales and makes its Fourier transform.
+    When different signal scalograms are computed with the exact same coefficients, 
+        this function can be executed only once and its result passed directly to compute_morlet_scalogram
+        
+    Output:
+        wf : Fourier transform of the wavelet coefficients (after weighting), Fourier frequencies are the first 
+    """
+    # compute final map scales
+    scales = f0/np.arange(f_start,f_stop,delta_freq)*sampling_rate
+    # compute wavelet coeffs at all scales
+    xi=np.arange(-len_wavelet/2.,len_wavelet/2.)
+    xsd = xi[:,np.newaxis] / scales
+    wavelet_coefs=np.exp(complex(1j)*2.*np.pi*f0*xsd)*np.exp(-np.power(xsd,2)/2.)
+
+    weighting_function = lambda x: x**(-(1.0+normalisation))
+    wavelet_coefs = wavelet_coefs*weighting_function(scales[np.newaxis,:])
+
+    # Transform the wavelet into the Fourier domain
+    #~ wf=fft(wavelet_coefs.conj(),axis=0) <- FALSE
+    wf=fftpack.fft(wavelet_coefs,axis=0)
+    wf=wf.conj() # at this point there was a mistake in the original script
+    
+    return wf
+
+
+def convolve_scalogram(sig, wf):
+    """
+    Convolve with fft the signal (in time domain) with the wavelet
+    already computed in freq domain.
+    
+    Parameters
+    ----------
+    sig: numpy.ndarray (1D, float)
+        The signal
+    wf: numpy.array (2D, complex)
+        The wavelet coefficient in fourrier domain.
+    """
+    n = wf.shape[0]
+    assert sig.shape[0]<=n, 'the sig.size is longer than wf.shape[0] {} {}'.format(sig.shape[0], wf.shape[0])
+    sigf=fftpack.fft(sig,n)
+    wt_tmp=fftpack.ifft(sigf[:,np.newaxis]*wf,axis=0)
+    wt = fftpack.fftshift(wt_tmp,axes=[0])
+    return wt
+
+def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0):
+    wf = generate_wavelet_fourier(len_wavelet=sig.size, f_start=10, f_stop=20, delta_freq=step, sampling_rate=srate, f0=f0, normalisation=normalisation)
+    wt = convolve_scalogram(sig, wf)
+    tf_matrix = np.abs(wt).T # axis 0 = freqs, axis 1 = time
+    return tf_matrix 
