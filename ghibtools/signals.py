@@ -672,8 +672,13 @@ def convolve_scalogram(sig, wf):
     wt = fftpack.fftshift(wt_tmp,axes=[0])
     return wt
 
-def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0):
+def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0, return_as_da=True):
     wf = generate_wavelet_fourier(len_wavelet=sig.size, f_start=f_start, f_stop=f_stop, delta_freq=delta_freq, sampling_rate=srate, f0=f0, normalisation=normalisation)
     wt = convolve_scalogram(sig, wf)
     tf_matrix = np.abs(wt).T # axis 0 = freqs, axis 1 = time
-    return tf_matrix 
+    
+    if return_as_da:
+        da_matrix = xr.DataArray(data = tf_matrix, dims = ['freqs','time'] , coords = {'freqs':np.arange(f_start,f_stop,delta_freq), 'time':time_vector(sig, srate)})
+        return da_matrix
+    else:
+        return tf_matrix 
