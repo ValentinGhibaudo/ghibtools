@@ -451,8 +451,12 @@ def deform_to_cycle_template(data, times, cycle_times, nb_point_by_cycle=40, ins
         mask = (cycle_points>=(c-esp)) & (cycle_points<(c+1-esp))
         deformed_data[mask] = np.nan
     
+    if n_cycles_removed != 0:
+        cycles_times_final = cycles_times[:-n_cycles_removed , :]
+    else:
+        cycles_times_final = cycles_times
     print('n cycle removed =' , n_cycles_removed)
-    return clipped_times, times_to_cycles, cycles, cycle_points, deformed_data
+    return cycles_times_final, cycles, deformed_data
     
 def detect_respiration_cycles(resp_sig, sampling_rate, t_start = 0., output = 'index',
 
@@ -686,13 +690,17 @@ def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0, retur
     else:
         return tf_matrix 
     
-def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio = 0.4):
+def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio = 0.4, save_path=None):
     # da = 3d da (chan * freqs * time)
-    clipped_times, times_to_cycles, cycles, cycle_points, deformed_data = deform_to_cycle_template(data = da.loc[chan,:,:].values.T,
+    cycles_times_final, cycles, deformed_data = deform_to_cycle_template(data = da.loc[chan,:,:].values.T,
                                                                                                    times = da.coords['time'].values , 
                                                                                                    cycle_times=rsp_features[['inspi_time','expi_time']].values, 
                                                                                                    nb_point_by_cycle=nb_point_by_cycle, 
                                                                                                    inspi_ratio = inspi_ratio)
+    if not save_path is None:
+        new_rsp_features = rsp_features[ (rsp_features['inspi_time'] >= cycles_times_final[0,0]) & ( rsp_features['inspi_time'] <= cycles_times_final[-1,0]) ] # mask rsp_features to cycles kept
+        new_rsp_features.to_excel(save_path)
+    
     deformed = deformed_data.T
     
     shape = (cycles.size , deformed.shape[0] , nb_point_by_cycle)
