@@ -452,9 +452,9 @@ def deform_to_cycle_template(data, times, cycle_times, nb_point_by_cycle=40, ins
         deformed_data[mask] = np.nan
     
     if n_cycles_removed != 0:
-        cycles_times_final = cycles_times[:-n_cycles_removed , :]
+        cycles_times_final = cycle_times[:-n_cycles_removed , :]
     else:
-        cycles_times_final = cycles_times
+        cycles_times_final = cycle_times
     print('n cycle removed =' , n_cycles_removed)
     return cycles_times_final, cycles, deformed_data
     
