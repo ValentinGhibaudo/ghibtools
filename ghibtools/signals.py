@@ -383,34 +383,36 @@ def deform_to_cycle_template(data, times, cycle_times, nb_point_by_cycle=40, ins
     #~ print('cycle_times.shape', cycle_times.shape)
     
     #clip cycles if data/times smaller than cycles
-    keep_cycle = (cycle_times[:, 0]>=times[0]) & (cycle_times[:, 1]<times[-1])
+    keep_cycle = (cycle_times[:, 0]>=times[0]) & (cycle_times[:, 1]<times[-1]) # keep cycles whose times are conatained in provided time vector
     first_cycle = np.where(keep_cycle)[0].min()
     last_cycle = np.where(keep_cycle)[0].max()+1
+    n_cycles_removed = 0
     if last_cycle==cycle_times.shape[0]:
         #~ print('yep')
-        last_cycle -= 1
+        last_cycle -= 1 # remove last cycle if last cycle is the last of provided cycles times
+        n_cycles_removed = n_cycles_removed+1
     #~ print('first_cycle', first_cycle, 'last_cycle', last_cycle)
 
     #clip times/data if cycle_times smaller than times
-    keep = (times>=cycle_times[first_cycle,0]) & (times<cycle_times[last_cycle,0])
+    keep = (times>=cycle_times[first_cycle,0]) & (times<cycle_times[last_cycle,0]) # keep times from first cycle point to last cycle point
     #~ print(keep)
-    clipped_times = times[keep]
-    clipped_data = data[keep]
+    clipped_times = times[keep] # = times - ( (time between start and first cycle point) + (time between end of pre last cycle to end time) )
+    clipped_data = data[keep] # = data kept according to clipped times
     #~ print('clipped_times', clipped_times.shape, clipped_times[0], clipped_times[-1])
     
     # construct cycle_step
-    times_to_cycles = np.zeros(clipped_times.shape)*np.nan
-    cycles = np.arange(first_cycle, last_cycle)
+    times_to_cycles = np.zeros(clipped_times.shape)*np.nan # make a nan array of shape of clipped times
+    cycles = np.arange(first_cycle, last_cycle) # rename cycles from 0 to last cycle
     t_start = clipped_times[0]
-    sr = np.median(np.diff(clipped_times))
+    sr = np.median(np.diff(clipped_times)) # get sampling rate
     #~ print('t_start', t_start, 'sr', sr)
     for c in cycles:
         #2 segments : inspi + expi
         
         if not np.isnan(cycle_times[c, 1]):
             #no missing cycles
-            mask_inspi_times=(clipped_times>=cycle_times[c, 0])&(clipped_times<cycle_times[c, 1])
-            mask_expi_times=(clipped_times>=cycle_times[c, 1])&(clipped_times<cycle_times[c+1, 0])
+            mask_inspi_times=(clipped_times>=cycle_times[c, 0])&(clipped_times<cycle_times[c, 1]) # where are inspi times of the cycles
+            mask_expi_times=(clipped_times>=cycle_times[c, 1])&(clipped_times<cycle_times[c+1, 0]) # where are expi times of the cycles
             times_to_cycles[mask_inspi_times]=(clipped_times[mask_inspi_times]-cycle_times[c, 0])/(cycle_times[c, 1]-cycle_times[c, 0])*inspi_ratio+c
             times_to_cycles[mask_expi_times]=(clipped_times[mask_expi_times]-cycle_times[c, 1])/(cycle_times[c+1, 0]-cycle_times[c, 1])*(1-inspi_ratio)+c+inspi_ratio
                     
@@ -435,6 +437,7 @@ def deform_to_cycle_template(data, times, cycle_times, nb_point_by_cycle=40, ins
         last_cycle = last_cycle-1
         cycles = np.arange(first_cycle, last_cycle)
         cycle_points = np.arange(first_cycle, last_cycle, 1./nb_point_by_cycle)
+        n_cycles_removed = n_cycles_removed+1
     
     deformed_data = interp(cycle_points)
     
@@ -448,7 +451,7 @@ def deform_to_cycle_template(data, times, cycle_times, nb_point_by_cycle=40, ins
         mask = (cycle_points>=(c-esp)) & (cycle_points<(c+1-esp))
         deformed_data[mask] = np.nan
     
-    
+    print('n cycle removed =' , n_cycles_removed)
     return clipped_times, times_to_cycles, cycles, cycle_points, deformed_data
     
 def detect_respiration_cycles(resp_sig, sampling_rate, t_start = 0., output = 'index',
