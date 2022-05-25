@@ -734,7 +734,7 @@ def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_du
     for i, fi in enumerate(range_freqs):
         
         ni = n_cycles[i]
-        cmw_f = gh.complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
+        cmw_f = complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
         complex_conv = signal.convolve(sig_down, cmw_f, mode = 'same')
         if squaring:
             module = np.abs(complex_conv) ** 2
