@@ -711,17 +711,19 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
         da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
     return da_stretch_cycle
 
-def tf(sig, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
+def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
     
-    sig_down = down_sample(sig, 2)
+    factor = 2
+    sig_down = down_sample(sig, factor)
+    down_srate = srate / factor
     
     a = 1 # amplitude of the cmw
     m = 0 # max time point of the cmw
-    time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/srate) # time vector of the cmw
+    time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/down_srate) # time vector of the cmw
     range_freqs = np.linspace(f_start,f_stop,n_steps) 
     n_cycles = np.linspace(cycle_start,cycle_stop,n_steps) # n cycles depends on fi
 
-    time_sig = np.arange(0, sig_down.size / srate , 1 / srate)
+    time_sig = np.arange(0, sig_down.size / down_srate , 1 / down_srate)
 
     shape = (range_freqs.size , time_sig.size)
     data = np.zeros(shape)
