@@ -710,3 +710,33 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
         data_of_the_cycle = deformed[:,cycle*nb_point_by_cycle:(cycle+1)*nb_point_by_cycle]
         da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
     return da_stretch_cycle
+
+def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
+    
+    a = 1 # amplitude of the cmw
+    m = 0 # max time point of the cmw
+    time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/srate) # time vector of the cmw
+    range_freqs = np.linspace(f_start,f_stop,n_steps) 
+    n_cycles = np.linspace(cycle_start,cycle_stop,n_steps) # n cycles depends on fi
+
+    time_sig = np.arange(0, sig.size / srate , 1 / srate)
+
+    shape = (range_freqs.size , time_sig.size)
+    data = np.zeros(shape)
+    dims = ['freqs','time']
+    coords = {'freqs':range_freqs, 'time':time_sig}
+    tf = xr.DataArray(data = data, dims = dims, coords = coords)
+    
+    for i, fi in enumerate(range_freqs):
+        
+        ni = n_cycles[i]
+        cmw_f = gh.complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
+        complex_conv = signal.convolve(sig, cmw_f, mode = 'same')
+        if squaring:
+            module = np.abs(complex_conv) ** 2
+        else:
+            module = np.abs(complex_conv) # abs method without squaring (more "real")
+
+        tf.loc[fi,:] = module
+
+    return tf
