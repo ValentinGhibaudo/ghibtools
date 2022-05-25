@@ -272,7 +272,7 @@ def complex_mw(a , time, n , freq, m = 0):
     cmw = GaussWin * complex_sinewave
     return cmw
 
-def extract_features_from_cmw_family(sig, time_sig, cmw_family_params, return_cmw_family=False, module_method='abs'):
+def extract_features_from_cmw_family(sig, time_sig, cmw_family_params, return_cmw_family=False, module_method='abs'): # cmw_family_params = {'amp':amp, 'time':time_cmw, 'n_cycles':n_cycles, 'm':m, 'range':range_freqs}
     
     shape = (2, cmw_family_params['range'].size, cmw_family_params['time'].size)
     cmw_family = np.zeros(shape)
@@ -679,8 +679,8 @@ def convolve_scalogram(sig, wf):
     wt = fftpack.fftshift(wt_tmp,axes=[0])
     return wt
 
-def cmo_tf(sig, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0, return_as_da=True):
-    wf = generate_wavelet_fourier(len_wavelet=sig.size, f_start=f_start, f_stop=f_stop, delta_freq=delta_freq, sampling_rate=srate, f0=f0, normalisation=normalisation)
+def cmo_tf(sig, len_wavelet, f_start, f_stop, delta_freq, srate, f0=5, normalisation=0, return_as_da=True):
+    wf = generate_wavelet_fourier(len_wavelet=len_wavelet, f_start=f_start, f_stop=f_stop, delta_freq=delta_freq, sampling_rate=srate, f0=f0, normalisation=normalisation)
     wt = convolve_scalogram(sig, wf)
     tf_matrix = np.abs(wt).T # axis 0 = freqs, axis 1 = time
     
