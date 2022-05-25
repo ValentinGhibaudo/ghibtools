@@ -711,7 +711,9 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
         da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
     return da_stretch_cycle
 
-def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
+def tf(sig, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
+    
+    sig_down = down_sample(sig, 2)
     
     a = 1 # amplitude of the cmw
     m = 0 # max time point of the cmw
@@ -719,7 +721,7 @@ def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_du
     range_freqs = np.linspace(f_start,f_stop,n_steps) 
     n_cycles = np.linspace(cycle_start,cycle_stop,n_steps) # n cycles depends on fi
 
-    time_sig = np.arange(0, sig.size / srate , 1 / srate)
+    time_sig = np.arange(0, sig_down.size / srate , 1 / srate)
 
     shape = (range_freqs.size , time_sig.size)
     data = np.zeros(shape)
@@ -731,7 +733,7 @@ def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_du
         
         ni = n_cycles[i]
         cmw_f = gh.complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
-        complex_conv = signal.convolve(sig, cmw_f, mode = 'same')
+        complex_conv = signal.convolve(sig_down, cmw_f, mode = 'same')
         if squaring:
             module = np.abs(complex_conv) ** 2
         else:
