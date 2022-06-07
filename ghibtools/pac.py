@@ -235,9 +235,9 @@ def get_all_features(sig, modulant_freqs, target_freqs, srate):
     return df_features.T.round(2)
 
 
-def get_comodulogram(sig, srate, range_fp , range_fa, bandwidth_fp=4, bandwidth_fa=10):
-    modulants = np.arange(range_fp[0], range_fp[1], 1)
-    modulated = np.arange(range_fa[0], range_fa[1], 1)
+def get_comodulogram(sig, srate, range_fp , range_fa, bandwidth_fp=4, bandwidth_fa=10, fp_resolution=0.5, fa_resolution=0.5):
+    modulants = np.arange(range_fp[0], range_fp[1], fp_resolution)
+    modulated = np.arange(range_fa[0], range_fa[1], fa_resolution)
     da_comodulogram = None
     for fp in modulants:
         modulants_freqs = (fp - bandwidth_fp/2, fp + bandwidth_fp/2)
@@ -247,7 +247,6 @@ def get_comodulogram(sig, srate, range_fp , range_fa, bandwidth_fp=4, bandwidth_
             if da_comodulogram is None:
                 da_comodulogram = gh.init_da({'Modulated_freqs':modulated, 'Modulant_Freqs':modulants})
             da_comodulogram.loc[fa, fp] = mi
-            # print(fp, fa, mi)
     return da_comodulogram
 
 def simu_pac_sig(pac_value, freq_modulant, amp_modulant, freq_modulated, amp_modulated, noise_amp, duration, srate):
