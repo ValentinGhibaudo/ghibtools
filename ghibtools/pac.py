@@ -149,7 +149,7 @@ def phase_amplitude_plot(pac_distribution, modulant_freqs, target_freqs):
     
 def raw_to_mi(sig, modulant_freqs, target_freqs, srate, N=18, shuffle = False):
     sig = sig - np.mean(sig)
-    phase_modulant, amp_target = get_phase_amplitude_vectors(sig=sig_tot, modulant_freqs=modulant_freqs, target_freqs=target_freqs, srate=srate)
+    phase_modulant, amp_target = get_phase_amplitude_vectors(sig=sig, modulant_freqs=modulant_freqs, target_freqs=target_freqs, srate=srate)
     if shuffle:
         phase_modulant = shuffle_sig(phase_modulant)
         amp_target = shuffle_sig(amp_target)
