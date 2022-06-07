@@ -5,7 +5,7 @@ from scipy import stats
 import mne
 import pandas as pd
 import xarray as xr
-from signals import init_da
+from .signals import init_da
 
 def Kullback_Leibler_Distance(a, b):
     a = np.asarray(a, dtype=float)
