@@ -245,7 +245,7 @@ def get_comodulogram(sig, srate, range_fp , range_fa, bandwidth_fp=4, bandwidth_
             target_freqs = (fa - bandwidth_fa/2, fa + bandwidth_fa/2)
             mi = raw_to_mi(sig, modulants_freqs, target_freqs, srate)
             if da_comodulogram is None:
-                da_comodulogram = gh.init_da({'Modulated_freqs':modulated, 'Modulant_Freqs':modulants})
+                da_comodulogram = init_da({'Modulated_freqs':modulated, 'Modulant_Freqs':modulants})
             da_comodulogram.loc[fa, fp] = mi
     return da_comodulogram
 
