@@ -168,12 +168,12 @@ def psd_of_amplitude_envelope(sig, target_freqs, srate, nperseg, show = False):
     dominant_freq = f[np.argmax(Pxx)]
     if show:
         fig, ax = plt.subplots()
-        ax.plot(f, Pxx)
+        ax.plot(f[f <= target_freqs[0]], Pxx[f <= target_freqs[0]])
         ax.set_title(f'[{target_freqs[0]}-{target_freqs[1]}] Hz Dominant Frequency of Envelope = {round(dominant_freq, 2)} Hz')
         ax.set_ylabel(f'PSD of Envelope [{target_freqs[0]}-{target_freqs[1]}]')
         ax.set_xlabel(f'Freq [Hz]')
         ax.vlines(x=dominant_freq, ymin=0, ymax = np.max(Pxx), linestyle = '--', color = 'r')
-        ax.set_xticks([0, dominant_freq, f[-1]])
+        ax.set_xticks([0, dominant_freq, f[f <= target_freqs[0]][-1])
         plt.show()
     return dominant_freq
 
