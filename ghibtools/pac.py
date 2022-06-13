@@ -160,11 +160,11 @@ def raw_to_mi(sig, modulant_freqs, target_freqs, srate, N=18, shuffle = False):
 def get_heights_ratio(distrib):
     return (np.max(distrib) - np.min(distrib)) / np.max(distrib)
 
-def psd_of_amplitude_envelope(sig, target_freqs, srate, show = False):
+def psd_of_amplitude_envelope(sig, target_freqs, srate, nperseg, show = False):
     sig = sig - np.mean(sig)
     filtered_sig_target = mne.filter.filter_data(sig, sfreq=srate, l_freq = target_freqs[0], h_freq=target_freqs[1], verbose = False)
     amp_target = get_amp(filtered_sig_target)
-    f, Pxx = signal.welch(amp_target, fs=srate, nperseg = srate)
+    f, Pxx = signal.welch(amp_target, fs=srate, nperseg = nperseg)
     dominant_freq = f[np.argmax(Pxx)]
     if show:
         fig, ax = plt.subplots()
