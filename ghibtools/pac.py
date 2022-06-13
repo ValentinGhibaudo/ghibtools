@@ -173,7 +173,7 @@ def psd_of_amplitude_envelope(sig, target_freqs, srate, nperseg, show = False):
         ax.set_ylabel(f'PSD of Envelope [{target_freqs[0]}-{target_freqs[1]}]')
         ax.set_xlabel(f'Freq [Hz]')
         ax.vlines(x=dominant_freq, ymin=0, ymax = np.max(Pxx), linestyle = '--', color = 'r')
-        ax.set_xticks([0, dominant_freq, f[f <= target_freqs[0]][-1])
+        ax.set_xticks([0, dominant_freq, f[f <= target_freqs[0]][-1]])
         plt.show()
     return dominant_freq
 
