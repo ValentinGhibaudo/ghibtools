@@ -286,58 +286,94 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
 
     if ax is None:
         fig, ax = plt.subplots()
+    
+    if len(predictor) == 1:
+        N = df[predictor].value_counts()[0]
+        ngroups = len(list(df[predictor].unique()))
         
-    N = df[predictor].value_counts()[0]
-    ngroups = len(list(df[predictor].unique()))
-    
-    parametricity_pre_transfo = parametric(df, predictor, outcome)
-    
-    if transform:
-        if not parametricity_pre_transfo:
-            df = transform_data(df, outcome)
-            parametricity_post_transfo = parametric(df, predictor, outcome)
-            parametricity = parametricity_post_transfo
-            if verbose:
-                if parametricity_post_transfo:
-                    print('Successfull transformation')
-                else:
-                    print('Un-successfull transformation')
+        parametricity_pre_transfo = parametric(df, predictor, outcome)
+        
+        if transform:
+            if not parametricity_pre_transfo:
+                df = transform_data(df, outcome)
+                parametricity_post_transfo = parametric(df, predictor, outcome)
+                parametricity = parametricity_post_transfo
+                if verbose:
+                    if parametricity_post_transfo:
+                        print('Successfull transformation')
+                    else:
+                        print('Un-successfull transformation')
+            else:
+                parametricity = parametricity_pre_transfo
         else:
             parametricity = parametricity_pre_transfo
-    else:
-        parametricity = parametricity_pre_transfo
-    
-    tests = guidelines(df, predictor, outcome, design, parametricity)
-    
-    pre_test = tests['pre']
-    post_test = tests['post']
-    results = pg_compute_pre(df, predictor, outcome, pre_test, subject)
-    pval = round(results['p'], 4)
-    
-    if not results['es'] is None:
-        es = round(results['es'], 3)
-    else:
-        es = results['es']
-    es_label = results['es_label']
-    es_interpretation = results['es_interp']
-    
-    order = list(df[predictor].unique())
-    
-    if mode == 'box':
-        if not post_test is None:
-            post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
-            ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
-        else:
-            ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
-     
-    elif mode == 'distribution':
-        # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
-        ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax)
         
-    if es_label is None:
-        ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
-    else:
-        ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_interpretation})')
+        tests = guidelines(df, predictor, outcome, design, parametricity)
+        
+        pre_test = tests['pre']
+        post_test = tests['post']
+        results = pg_compute_pre(df, predictor, outcome, pre_test, subject)
+        pval = round(results['p'], 4)
+        
+        if not results['es'] is None:
+            es = round(results['es'], 3)
+        else:
+            es = results['es']
+        es_label = results['es_label']
+        es_interpretation = results['es_interp']
+        
+        order = list(df[predictor].unique())
+        
+        if mode == 'box':
+            if not post_test is None:
+                post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
+                ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
+            else:
+                ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
+        
+        elif mode == 'distribution':
+            # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
+            ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax)
+            
+        if es_label is None:
+            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
+        else:
+            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_interpretation})')
+    
+    elif len(predictor) == 2:
+        
+        if design == 'within':
+            test_type = 'rm_anova'
+            test = pg.rm_anova(data=df, dv=outcome, within = predictor, subject = subject).set_index('Source').round(3)
+            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-GG-corr']
+            pstars = pval_stars(pval)
+            es_label = test.columns[-2]
+            es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
+            es_interpretation = es_interpretation(es_label, es)
+            ppred_0 = test.loc[f'{predictor[0]}', 'p-GG-corr']
+            ppred_1 = test.loc[f'{predictor[1]}', 'p-GG-corr']
+            
+        elif design == 'between':
+            test_type = 'anova'
+            test = pg.anova(data=df, dv=outcome, between = predictor).set_index('Source').round(3)
+            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-unc']
+            pstars = pval_stars(pval)
+            es_label = test.columns[-2]
+            es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
+            es_interpretation = es_interpretation(es_label, es)
+            ppred_0 = test.loc[f'{predictor[0]}', 'p-unc']
+            ppred_1 = test.loc[f'{predictor[1]}', 'p-unc']
+            
+        if len(df[predictor[0]]) >= len(df[predictor[1]]):
+            x = predictor[0]
+            hue = predictor[1]
+        else:
+            x = predictor[1]
+            hue = predictor[0]
+        
+        sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax)
+        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{pval}, {es_label} : {es} ({es_interpretation}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
+        ax.set_title(title)
         
     return ax
 
