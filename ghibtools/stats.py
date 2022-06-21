@@ -287,7 +287,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
     if ax is None:
         fig, ax = plt.subplots()
     
-    if len(predictor) == 1:
+    if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
         ngroups = len(list(df[predictor].unique()))
         
@@ -340,7 +340,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         else:
             ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
     
-    elif len(predictor) == 2:
+    elif isinstance(predictor, list):
         
         if design == 'within':
             test_type = 'rm_anova'
