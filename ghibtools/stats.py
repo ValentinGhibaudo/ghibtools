@@ -320,7 +320,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         else:
             es = results['es']
         es_label = results['es_label']
-        es_interp = results['es_interp']
+        es_inter = results['es_interp']
         
         order = list(df[predictor].unique())
         
@@ -338,7 +338,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         if es_label is None:
             ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
         else:
-            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_interp})')
+            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
     
     elif len(predictor) == 2:
         
@@ -349,7 +349,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             pstars = pval_stars(pval)
             es_label = test.columns[-2]
             es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
-            es_interp = es_interpretation(es_label, es)
+            es_inter = es_interpretation(es_label=es_label, es_value=es)
             ppred_0 = test.loc[f'{predictor[0]}', 'p-GG-corr']
             ppred_1 = test.loc[f'{predictor[1]}', 'p-GG-corr']
             
@@ -360,7 +360,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             pstars = pval_stars(pval)
             es_label = test.columns[-2]
             es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
-            es_interp = es_interpretation(es_label, es)
+            es_inter = es_interpretation(es_label=es_label, es_value=es)
             ppred_0 = test.loc[f'{predictor[0]}', 'p-unc']
             ppred_1 = test.loc[f'{predictor[1]}', 'p-unc']
             
@@ -372,7 +372,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             hue = predictor[0]
         
         sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax)
-        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{pval}, {es_label} : {es} ({es_interp}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
+        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{pval}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
         ax.set_title(title)
         
     return ax
