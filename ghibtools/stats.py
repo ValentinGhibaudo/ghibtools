@@ -358,7 +358,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             test = pg.anova(data=df, dv=outcome, between = predictor).set_index('Source').round(3)
             pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-unc']
             pstars = pval_stars(pval)
-            es_label = test.columns[-2]
+            es_label = test.columns[-1]
             es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
             es_inter = es_interpretation(es_label=es_label, es_value=es)
             ppred_0 = test.loc[f'{predictor[0]}', 'p-unc']
