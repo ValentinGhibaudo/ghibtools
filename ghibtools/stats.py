@@ -195,13 +195,13 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
         
     elif test == 'pairwise_ttests_paired_paramTrue':
-        res = pg.pairwise_ttests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True)
+        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
-        res = pg.pairwise_ttests(data = df, dv=outcome, between=predictor, parametric=True)
+        res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True)
 
     elif test == 'pairwise_ttests_paired_paramFalse':
-        res = pg.pairwise_ttests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False)
+        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False)
         
     return res
 
