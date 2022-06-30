@@ -6,3 +6,4 @@ from .stats import *
 from .hrv import *
 from .data_manip import *
 from .pac import * 
+from .machinelearning import * 
