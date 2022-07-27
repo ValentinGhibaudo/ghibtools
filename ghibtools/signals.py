@@ -752,8 +752,12 @@ def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_dur
 
     return tf
 
-def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False):
-    baseline_fi = tf.loc[:,start_baseline:stop_baseline].mean('time')
+def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False, center_estimator='median'):
+    if center_estimator == 'mean':
+        baseline_fi = tf.loc[:,start_baseline:stop_baseline].mean('time')
+    elif center_estimator == 'median':
+        baseline_fi = tf.loc[:,start_baseline:stop_baseline].median('time')
+
     if show:
         fig, ax = plt.subplots()
         ax.plot(baseline_fi.coords['freqs'].values, baseline_fi.values)
@@ -770,4 +774,6 @@ def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = F
         elif method == 'ztransform':
             std_baseline_over_time = tf.loc[fi,start_baseline:stop_baseline].std().values
             tf_scaled.loc[fi, :] = (tf_scaled.loc[fi,:] - baseline_fi.loc[fi]) / std_baseline_over_time
+        elif method == 'divide':
+            tf_scaled.loc[fi, :] = tf_scaled.loc[fi,:] / baseline_fi.loc[fi]
     return tf_scaled         
