@@ -711,7 +711,7 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
         da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
     return da_stretch_cycle
 
-def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True):
+def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True, increase = 'linear'):
     
     factor = 2
     sig_down = down_sample(sig, factor)
@@ -720,8 +720,15 @@ def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_du
     a = 1 # amplitude of the cmw
     m = 0 # max time point of the cmw
     time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/down_srate) # time vector of the cmw
-    range_freqs = np.linspace(f_start,f_stop,n_steps) 
-    n_cycles = np.linspace(cycle_start,cycle_stop,n_steps) # n cycles depends on fi
+
+    if increase == 'linear':
+        range_freqs = np.linspace(f_start,f_stop,n_step) 
+    elif increase == 'log':
+        log_start = np.log10(f_start)
+        log_stop = np.log10(f_stop)
+        range_freqs = np.logspace(log_start,log_stop,n_step) 
+
+    n_cycles = np.linspace(cycle_start,cycle_stop,n_step) # n cycles depends on fi
 
     time_sig = np.arange(0, sig_down.size / down_srate , 1 / down_srate)
 
@@ -744,3 +751,23 @@ def tf(sig, srate, f_start, f_stop, n_steps, cycle_start, cycle_stop, wavelet_du
         tf.loc[fi,:] = module
 
     return tf
+
+def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False):
+    baseline_fi = tf.loc[:,start_baseline:stop_baseline].mean('time')
+    if show:
+        fig, ax = plt.subplots()
+        ax.plot(baseline_fi.coords['freqs'].values, baseline_fi.values)
+        ax.set_title('Power law of selected baseline')
+        ax.set_ylabel('Power')
+        ax.set_xlabel('Freqs')
+        plt.show()
+    tf_scaled = tf.copy()
+    for fi in tf.coords['freqs'].values:
+        if method == 'decibel':
+            tf_scaled.loc[fi, :] = 10*np.log10(tf_scaled.loc[fi,:] / baseline_fi.loc[fi])
+        elif method == 'prctchange':
+            tf_scaled.loc[fi, :] = 100*((tf_scaled.loc[fi,:] - baseline_fi.loc[fi]) / baseline_fi.loc[fi])
+        elif method == 'ztransform':
+            std_baseline_over_time = tf.loc[fi,start_baseline:stop_baseline].std().values
+            tf_scaled.loc[fi, :] = (tf_scaled.loc[fi,:] - baseline_fi.loc[fi]) / std_baseline_over_time
+    return tf_scaled         

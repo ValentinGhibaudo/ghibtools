@@ -344,7 +344,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         
         if design == 'within':
             test_type = 'rm_anova'
-            test = pg.rm_anova(data=df, dv=outcome, within = predictor, subject = subject).set_index('Source').round(3)
+            test = pg.rm_anova(data=df, dv=outcome, within = predictor, subject = subject, effsize = 'np2').set_index('Source').round(3)
             pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-GG-corr']
             pstars = pval_stars(pval)
             es_label = test.columns[-2]
