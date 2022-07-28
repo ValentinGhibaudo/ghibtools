@@ -712,14 +712,10 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
     return da_stretch_cycle
 
 def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True, increase = 'linear'):
-    
-    factor = 2
-    sig_down = down_sample(sig, factor)
-    down_srate = srate / factor
-    
+
     a = 1 # amplitude of the cmw
     m = 0 # max time point of the cmw
-    time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/down_srate) # time vector of the cmw
+    time_cmw = np.arange(-wavelet_duration,wavelet_duration,1/srate) # time vector of the cmw
 
     if increase == 'linear':
         range_freqs = np.linspace(f_start,f_stop,n_step) 
@@ -730,7 +726,7 @@ def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_dur
 
     n_cycles = np.linspace(cycle_start,cycle_stop,n_step) # n cycles depends on fi
 
-    time_sig = np.arange(0, sig_down.size / down_srate , 1 / down_srate)
+    time_sig = np.arange(0, sig.size / srate , 1 / srate)
 
     shape = (range_freqs.size , time_sig.size)
     data = np.zeros(shape)
@@ -742,7 +738,7 @@ def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_dur
         
         ni = n_cycles[i]
         cmw_f = complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
-        complex_conv = signal.convolve(sig_down, cmw_f, mode = 'same')
+        complex_conv = signal.convolve(sig, cmw_f, mode = 'same')
         if squaring:
             module = np.abs(complex_conv) ** 2
         else:
@@ -752,7 +748,7 @@ def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_dur
 
     return tf
 
-def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False, center_estimator='median'):
+def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False, center_estimator='median',decimate_factor=1):
     if center_estimator == 'mean':
         baseline_fi = tf.loc[:,start_baseline:stop_baseline].mean('time')
     elif center_estimator == 'median':
@@ -776,4 +772,12 @@ def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = F
             tf_scaled.loc[fi, :] = (tf_scaled.loc[fi,:] - baseline_fi.loc[fi]) / std_baseline_over_time
         elif method == 'divide':
             tf_scaled.loc[fi, :] = tf_scaled.loc[fi,:] / baseline_fi.loc[fi]
+
+    if decimate_factor != 1:
+        dims = tf_scaled.dims
+        freqs = tf_scaled.coords['freqs']
+        time = signal.decimate(tf_scaled.coords['time'].values, decimate_factor)
+        coords = {'freqs':freqs,'time':time}
+        tf_scaled = xr.DataArray(data=signal.decimate(tf_scaled, decimate_factor), dims = dims, coords = coords)
+        
     return tf_scaled         

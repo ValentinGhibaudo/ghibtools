@@ -282,7 +282,7 @@ def transform_data(df, outcome):
     return df_transfo     
 
 
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=True, verbose=True):
+def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=True, verbose=True, order = None):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -322,7 +322,11 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         es_label = results['es_label']
         es_inter = results['es_interp']
         
-        order = list(df[predictor].unique())
+        if order is None:
+            order = list(df[predictor].unique())
+        else:
+            order = order
+
         
         if mode == 'box':
             if not post_test is None:
@@ -333,7 +337,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         
         elif mode == 'distribution':
             # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
-            ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax)
+            ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax, bw_adjust = 0.6)
             
         if es_label is None:
             ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
