@@ -271,7 +271,7 @@ def pval_stars(pval):
         stars = '***'
     elif pval < 0.0001:
         stars = '****'
-    else:
+    elif pval >= 0.05:
         stars = 'ns'
     return stars
 
@@ -282,7 +282,7 @@ def transform_data(df, outcome):
     return df_transfo     
 
 
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=True, verbose=True, order = None):
+def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None):
 
     if ax is None:
         fig, ax = plt.subplots()

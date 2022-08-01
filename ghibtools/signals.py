@@ -711,7 +711,7 @@ def tf_cycle_stretch(da, chan, rsp_features, nb_point_by_cycle=1000, inspi_ratio
         da_stretch_cycle.loc[cycle, : , :] = data_of_the_cycle
     return da_stretch_cycle
 
-def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True, increase = 'linear'):
+def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_duration = 2, squaring=True, increase = 'linear', extracted_feature = 'power'):
 
     a = 1 # amplitude of the cmw
     m = 0 # max time point of the cmw
@@ -739,16 +739,24 @@ def tf(sig, srate, f_start, f_stop, n_step, cycle_start, cycle_stop, wavelet_dur
         ni = n_cycles[i]
         cmw_f = complex_mw(a=a, time=time_cmw, n=ni, freq=fi, m = m) # make the complex mw
         complex_conv = signal.convolve(sig, cmw_f, mode = 'same')
-        if squaring:
-            module = np.abs(complex_conv) ** 2
-        else:
-            module = np.abs(complex_conv) # abs method without squaring (more "real")
 
-        tf.loc[fi,:] = module
+        if extracted_feature == 'power':
+            if squaring:
+                module = np.abs(complex_conv) ** 2
+            else:
+                module = np.abs(complex_conv) # abs method without squaring (more "real")
+
+            tf.loc[fi,:] = module
+        elif extracted_feature == 'phase':
+            tf.loc[fi,:] = np.angle(complex_conv)
+        elif extracted_feature == 'filter':
+            tf.loc[fi,:] = np.real(complex_conv)
+        else:
+            assert ValueError("Possible arguments in extracted_features : ['power','phase','filter']")
 
     return tf
 
-def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False, center_estimator='median',decimate_factor=1):
+def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = False, center_estimator='median',decimate_factor=1): # input = 2D Xarray : freqs * time
     if center_estimator == 'mean':
         baseline_fi = tf.loc[:,start_baseline:stop_baseline].mean('time')
     elif center_estimator == 'median':
@@ -761,6 +769,7 @@ def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = F
         ax.set_ylabel('Power')
         ax.set_xlabel('Freqs')
         plt.show()
+
     tf_scaled = tf.copy()
     for fi in tf.coords['freqs'].values:
         if method == 'decibel':
@@ -780,4 +789,15 @@ def tf_power_law(tf, start_baseline, stop_baseline, method = 'decibel', show = F
         coords = {'freqs':freqs,'time':time}
         tf_scaled = xr.DataArray(data=signal.decimate(tf_scaled, decimate_factor), dims = dims, coords = coords)
         
-    return tf_scaled         
+    return tf_scaled  
+
+def get_itpc(da): # input = 3D Xarray : trials * freqs * time
+    da_itpc = None
+    for f in da.coords['freqs'].values:
+        for t in da.coords['time'].values:
+            phase_angles = da.loc[:,f,t]
+            mean_phase_angle_over_trials = np.abs(np.mean(np.exp(1j*phase_angles)))
+            if da_itpc is None:
+                da_itpc = init_da({'freqs':da.coords['freqs'].values, 'time':da.coords['time'].values})
+            da_itpc.loc[f,t] = mean_phase_angle_over_trials
+    return da_itpc # output = 2D Xarray : freqs * time
