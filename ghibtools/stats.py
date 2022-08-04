@@ -5,7 +5,7 @@ import seaborn as sns
 from statannotations.Annotator import Annotator
 import matplotlib.pyplot as plt
 
-def normality(df, predictor, outcome, show = False):
+def normality(df, predictor, outcome):
     df = df.reset_index(drop=True)
     groups = list(set(df[predictor]))
     n_groups = len(groups)
@@ -17,26 +17,6 @@ def normality(df, predictor, outcome, show = False):
     else:
         normal = False
     
-    if show : 
-        group1 = df[df[predictor] == groups[0]][outcome]
-        group2 = df[df[predictor] == groups[1]][outcome]
-        fig , axs = plt.subplots(ncols = 2)
-        
-        ax = axs[0]
-        group1.plot(kind='density', ax = ax)
-        ax.set_title('Group 1')
-        ax.vlines(x = mean, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'r')
-        ax.vlines(x = low, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'y')
-        ax.vlines(x = high, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'y')
-
-        ax = axs[1]
-        group2.plot(kind='density', ax = ax)
-        ax.set_title('Group 1')
-        ax.vlines(x = mean, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'r')
-        ax.vlines(x = low, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'y')
-        ax.vlines(x = high, ymin = 0, ymax = 1, linestyles = 'dotted', color = 'y')
-
-        plt.show()
     return normal
 
 def homoscedasticity(df, predictor, outcome):
@@ -187,7 +167,29 @@ def get_stats_tests():
     df = df.set_index(['parametricity','paired','samples'])
     return df
 
+def homemade_post_hoc(df, predictor, outcome, design = 'within', subject = None, parametric = True):
+    pairs = pg.pairwise_tests(data=df, dv = outcome, within = predictor, subject = subject, parametric = False).loc[:,['A','B']]
+    pvals = []
+    for i, pair in pairs.iterrows():
+        x = df[df[predictor] == pair[0]][outcome]
+        y = df[df[predictor] == pair[1]][outcome]
 
+        if design == 'within':
+            if parametric:
+                p = pg.ttest(x, y, paired= True)['p-val']
+            else:
+                p = pg.wilcoxon(x, y)['p-val']
+        elif design == 'between':
+            if parametric:
+                p = pg.ttest(x, y, paired= False)['p-val']
+            else:
+                p = pg.mwu(x, y)['p-val']
+        pvals.append(p.values[0])
+        
+    pairs['p-unc'] = pvals
+    _, pvals_corr = pg.multicomp(pvals)
+    pairs['p-corr'] = pvals_corr
+    return pairs
         
 def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
     
@@ -195,16 +197,18 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
         
     elif test == 'pairwise_ttests_paired_paramTrue':
-        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True)
+        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True, padjust = 'holm')
+        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
-        res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True)
+        res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
+        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'between', parametric=False)
 
     elif test == 'pairwise_ttests_paired_paramFalse':
-        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False)
-        
+        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
+        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=False)
+     
     return res
-
 
 def auto_annotated_stats(df, predictor, outcome, test):
     
@@ -242,7 +246,7 @@ def custom_annotated_two(df, predictor, outcome, order, pval, ax=None, plot_mode
 
 def custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=None, plot_mode = 'box'):
         
-    pvalues = list(post_hoc['p-unc'])
+    pvalues = list(post_hoc['p-corr'])
 
     x = predictor
     y = outcome
@@ -279,10 +283,12 @@ def pval_stars(pval):
 def transform_data(df, outcome):
     df_transfo = df.copy()
     df_transfo[outcome] = np.log(df[outcome])
-    return df_transfo     
+    return df_transfo  
 
 
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None):
+
+
+def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None, homemade_posthoc = False):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -327,22 +333,34 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         else:
             order = order
 
-        
+        estimators = pd.concat([df.groupby(predictor).mean()[outcome].reset_index(), df.groupby(predictor).std()[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2)
+        ticks_estimators = [f"{row[predictor]} \n {row[outcome]} ({row['sd']})" for i , row in estimators.iterrows()]
+
         if mode == 'box':
             if not post_test is None:
                 post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
                 ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
             else:
                 ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
-        
+            ax.set_xticks(range(ngroups))
+            ax.set_xticklabels(ticks_estimators)
+            
         elif mode == 'distribution':
             # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
             ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax, bw_adjust = 0.6)
-            
-        if es_label is None:
-            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}')
-        else:
-            ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} * {ngroups} \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
+        
+        if design == 'between':
+            if es_label is None:
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{pval}')
+            else:
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
+        elif design == 'within':
+            n_subjects = df[subject].unique().size
+            if es_label is None:
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{pval}')
+            else:
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
+
     
     elif isinstance(predictor, list):
         
