@@ -4,6 +4,8 @@ import pingouin as pg
 import seaborn as sns
 from statannotations.Annotator import Annotator
 import matplotlib.pyplot as plt
+from scipy import stats
+import itertools
 
 def normality(df, predictor, outcome):
     df = df.reset_index(drop=True)
@@ -192,6 +194,8 @@ def homemade_post_hoc(df, predictor, outcome, design = 'within', subject = None,
     return pairs
         
 def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
+
+    n_subjects = df[subject].unique().size
     
     if test == 'pairwise_tukey':
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
@@ -201,12 +205,16 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
-        res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
-        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'between', parametric=False)
+        if n_subjects > 10:
+            res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
+        else:
+            res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'between')
 
     elif test == 'pairwise_ttests_paired_paramFalse':
-        res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
-        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=False)
+        if n_subjects > 10:
+            res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
+        else:
+            res = res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
      
     return res
 
@@ -333,8 +341,8 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         else:
             order = order
 
-        estimators = pd.concat([df.groupby(predictor).mean()[outcome].reset_index(), df.groupby(predictor).std()[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2)
-        ticks_estimators = [f"{row[predictor]} \n {row[outcome]} ({row['sd']})" for i , row in estimators.iterrows()]
+        estimators = pd.concat([df.groupby(predictor).mean()[outcome].reset_index(), df.groupby(predictor).std()[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
+        ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']})" for cond in order]
 
         if mode == 'box':
             if not post_test is None:
@@ -471,3 +479,27 @@ def qqplot(df, predictor, outcome, figsize = (10,15)):
             ax.set_title(f'Condition : {label} ; data are {transform} transformed')
         
     plt.show()
+
+def permutation_test_homemade(x,y, design = 'within', n_resamples=9999):
+    def statistic(x, y):
+        return np.mean(x) - np.mean(y)
+    if design == 'within':
+        permutation_type = 'samples'
+    elif design == 'between':
+        permutation_type = 'independent'
+    res = stats.permutation_test(data=[x,y], statistic=statistic, permutation_type=permutation_type, n_resamples=n_resamples, batch=None, alternative='two-sided', axis=0, random_state=None)
+    return res.pvalue
+
+def permutation(df, predictor, outcome , design = 'within' , subject = None, n_resamples=999):
+    pairs = list((itertools.combinations(df[predictor].unique(), 2)))
+    pvals = []
+    for pair in pairs:
+        x = df[df[predictor] == pair[0]][outcome].values
+        y = df[df[predictor] == pair[1]][outcome].values
+        p = permutation_test_homemade(x,y, design=design, n_resamples=n_resamples)
+        pvals.append(p)
+    df_return = pd.DataFrame(pairs, columns = ['A','B'])
+    df_return['p-unc'] = pvals
+    rej , pcorrs = pg.multicomp(pvals, method = 'holm')
+    df_return['p-corr'] = pcorrs
+    return df_return
