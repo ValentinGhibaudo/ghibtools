@@ -6,6 +6,7 @@ from statannotations.Annotator import Annotator
 import matplotlib.pyplot as plt
 from scipy import stats
 import itertools
+import statsmodels.formula.api as smf
 
 def normality(df, predictor, outcome):
     df = df.reset_index(drop=True)
@@ -21,19 +22,27 @@ def normality(df, predictor, outcome):
     
     return normal
 
+def sphericity(df, predictor, outcome, subject):
+    spher, W , chi2, dof, pval = pg.sphericity(data = df, dv = outcome, within = predictor, subject = subject)
+    return spher
+
 def homoscedasticity(df, predictor, outcome):
     homoscedasticity = pg.homoscedasticity(data = df, dv = outcome, group = predictor)['equal_var'].values[0]
     return homoscedasticity
 
-def parametric(df, predictor, outcome):
+def parametric(df, predictor, outcome, subject = None):
     df = df.reset_index(drop=True)
     groups = list(set(df[predictor]))
     n_groups = len(groups)
     
     normal = normality(df, predictor, outcome)
-    homoscedastic = homoscedasticity(df, predictor, outcome)
+
+    if subject is None:
+        equal_var = homoscedasticity(df, predictor, outcome)
+    else:
+        equal_var = sphericity(df, predictor, outcome, subject)
     
-    if normal and homoscedastic:
+    if normal and equal_var:
         parametricity = True
     else:
         parametricity = False
@@ -205,13 +214,13 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
-        if n_subjects > 10:
+        if n_subjects > 15:
             res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
         else:
             res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'between')
 
     elif test == 'pairwise_ttests_paired_paramFalse':
-        if n_subjects > 10:
+        if n_subjects > 15:
             res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
         else:
             res = res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
@@ -305,12 +314,12 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         N = df[predictor].value_counts()[0]
         ngroups = len(list(df[predictor].unique()))
         
-        parametricity_pre_transfo = parametric(df, predictor, outcome)
+        parametricity_pre_transfo = parametric(df, predictor, outcome, subject)
         
         if transform:
             if not parametricity_pre_transfo:
                 df = transform_data(df, outcome)
-                parametricity_post_transfo = parametric(df, predictor, outcome)
+                parametricity_post_transfo = parametric(df, predictor, outcome, subject)
                 parametricity = parametricity_post_transfo
                 if verbose:
                     if parametricity_post_transfo:
@@ -503,3 +512,53 @@ def permutation(df, predictor, outcome , design = 'within' , subject = None, n_r
     rej , pcorrs = pg.multicomp(pvals, method = 'holm')
     df_return['p-corr'] = pcorrs
     return df_return
+
+def reorder_df(df, colname, order):
+    concat = []
+    for cond in order:
+        concat.append(df[df[colname] == cond])
+    return pd.concat(concat)
+
+
+def lmm(df, predictor, outcome, subject, order=None):
+
+    if isinstance(predictor, str):
+        formula = f'{outcome} ~ {predictor}' 
+    elif isinstance(predictor, list):
+        if len(predictor) == 2:
+            formula = f'{outcome} ~ {predictor[0]}*{predictor[1]}' 
+        elif len(predictor) == 3:
+            formula = f'{outcome} ~ {predictor[0]}*{predictor[1]}*{predictor[2]}' 
+
+    if not order is None:
+        df = reorder_df(df, predictor, order)
+
+    order = list(df[predictor].unique())
+
+    md = smf.mixedlm(formula, data=df, groups=df[subject])
+    mdf = md.fit()
+    print(mdf.summary())
+
+    pvals = mdf.pvalues.to_frame(name = 'p')
+    coefs = mdf.fe_params.to_frame(name = 'coef').round(3)
+    dict_pval_stars = {idx.split('.')[1][:-1]:pval_stars(pvals.loc[idx,'p']) for idx in pvals.index if not idx in ['Intercept','Group Var']}
+    dict_coefs = {idx.split('.')[1][:-1]:coefs.loc[idx,'coef'] for idx in coefs.index if not idx in ['Intercept','Group Var']}
+
+    fig, ax = plt.subplots()
+    if isinstance(predictor, str):
+        sns.boxplot(data=df, x = predictor, y = outcome, ax=ax )
+    elif isinstance(predictor, list):
+        sns.pointplot(data=df, x = predictor[0], y = outcome, hue = predictor[1],ax=ax)
+    ax.set_title(formula)
+    ticks = []
+    for i, cond in enumerate(order):
+        if i == 0:
+            tick = cond
+        else:
+            tick = f"{cond} \n {dict_pval_stars[cond]} \n {dict_coefs[cond]}"
+        ticks.append(tick)
+    ax.set_xticks(range(df[predictor].unique().size))
+    ax.set_xticklabels(ticks)
+    plt.show()
+    
+    return mdf
