@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fftpack
+import scipy.interpolate
 import xarray as xr
 import joblib
 import pandas as pd
@@ -75,7 +76,6 @@ def filter_sig(sig,fs, low, high , order=1, btype = 'mne', show = False):
         filtered_sig = signal.filtfilt(b, a, sig)
         
     elif btype == 'mne':
-        import mne
         filtered_sig = mne.filter.filter_data(sig, sfreq=fs, l_freq = low, h_freq = high, verbose = False)
         
     if show:
@@ -109,18 +109,28 @@ def down_sample(sig, factor):
     sig_down = signal.decimate(sig, q=factor, n=None, ftype='iir', axis=- 1, zero_phase=True)
     return sig_down
 
-def spectre(sig, srate, wsize):
-    nperseg = int(wsize * srate)
-    nfft = nperseg * 2
+def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 2, verbose = False):
+    nperseg = get_wsize(srate, lowest_freq, n_cycles)
+    nfft = nperseg * nfft_factor
     f, Pxx = signal.welch(sig, fs=srate, nperseg = nperseg , nfft = nfft, scaling='spectrum')
-    # print(f.size)
+    if verbose:
+        n_windows = 2 * sig.size // nperseg
+        print(f'nperseg : {nperseg}')
+        print(f'sig size : {sig.size}')
+        print(f'total cycles lowest freq : {int(sig.size / ((1 / lowest_freq)*srate))}')
+        print(f'nwindows : {n_windows}')
     return f, Pxx
 
-def coherence(sig1,sig2, srate, wsize):
-    nperseg = int(wsize * srate)
-    nfft = nperseg * 2
+def coherence(sig1,sig2, srate, lowest_freq, n_cycles = 5, nfft_factor = 2, verbose= False):
+    nperseg = get_wsize(srate, lowest_freq, n_cycles)
+    nfft = nperseg * nfft_factor
     f, Cxy = signal.coherence(sig1,sig2, fs=srate, nperseg = nperseg , nfft = nfft )
-    # print(f.size)
+    if verbose:
+        n_windows = 2 * sig.size // nperseg
+        print(f'nperseg : {nperseg}')
+        print(f'sig size : {sig.size}')
+        print(f'total cycles lowest freq : {int(sig.size / ((1 / lowest_freq)*srate))}')
+        print(f'nwindows : {n_windows}')
     return f, Cxy
 
 def init_da(coords, name = None):
@@ -157,11 +167,7 @@ def shuffle_sig_one_break(sig):
     sig2 = np.hstack([sig[ind:], sig[:ind]])
     return sig2
 
-import numpy as np
-import pandas as pd
-from scipy import signal
-import scipy.interpolate
-import xarray as xr
+
 
 def discrete_FT_homemade(sig, srate):
     t = np.arange(0, sig.size/srate, 1/srate)

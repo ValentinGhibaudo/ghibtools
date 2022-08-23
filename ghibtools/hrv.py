@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import neurokit2 as nk
 import matplotlib.pyplot as plt
-from .signals import time_vector
+from .signals import time_vector, spectre
 
 def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False):
 
@@ -27,9 +27,9 @@ def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False):
     interpolated_hrv = np.interp(x, xp, fp, left=None, right=None, period=None) / srate
     fci = 60 / interpolated_hrv
     
-    return clean, fci
+    return fci
 
-def get_hrv_metrics(ecg, srate, show = False):
+def get_hrv_metrics(ecg, srate, kind = 'all', show = False):
     peaks, info = nk.ecg_peaks(ecg, sampling_rate=srate, correct_artifacts=True)
     if show: 
         pics = info['ECG_R_Peaks']
@@ -38,7 +38,15 @@ def get_hrv_metrics(ecg, srate, show = False):
         ax.plot(pics, ecg[pics], 'x', label = 'peaks')
         plt.show()
 
-    return nk.hrv(peaks).dropna(axis = 'columns')
+    if kind == 'all':
+        return nk.hrv(peaks, srate).dropna(axis = 'columns')
+    elif kind == 'time':
+        return nk.hrv_time(peaks, srate).dropna(axis = 'columns')
+    elif kind == 'freq':
+        return nk.hrv_frequency(peaks, srate).dropna(axis = 'columns')
+    elif kind == 'time_and_freq':
+        return pd.concat([nk.hrv_time(peaks, srate).dropna(axis = 'columns'), nk.hrv_frequency(peaks, srate).dropna(axis = 'columns')], axis = 1)
+
 
 def get_rsa(ecg, rsp, srate, show = False):
     ecg_signals, info = nk.ecg_process(ecg, sampling_rate = srate)
@@ -108,7 +116,7 @@ def RRI_to_successive_differences(RRIs):
     for i, RRI in enumerate(RRIs):
         if i != 0:
             successive_differences.append(RRIs[i-1] - RRI)
-    return 
+    return successive_differences
 
 def MeanNN(RRIs):
     return np.mean(RRIs)
@@ -126,3 +134,27 @@ def RMSSD(RRIs):
 
 def pNN50(RRIs):
     return (sum(RRIs) > 50) / RRIs.size
+
+def freq_domain(ecg, srate):
+    fci = ecg_to_hrv(ecg, srate)
+    f, Pxx = spectre(fci, srate, lowest_freq=0.04)
+    lf = np.trapz(Pxx[(f > 0.04) & (f < 0.15)])
+    hf = np.trapz(Pxx[(f > 0.15) & (f < 0.4)])
+    lfhf = lf / hf
+    return {'LF':lf, 'HF':hf, 'LFHF':lfhf}
+
+def get_hrv_metrics_homemade(ecg, srate, show = False):
+    peaks = ecg_peaks(ecg, srate)
+    rri = peaks_to_RRI(peaks, srate)
+    mean_nn = MeanNN(rri)
+    sdnn = SDNN(rri)
+    rmssd = RMSSD(rri)
+    pnn50 = pNN50(rri)
+    freqs = freq_domain(ecg, srate)
+    data = [mean_nn , sdnn , rmssd , pnn50, freqs['LF'], freqs['HF'], freqs['LFHF']]
+    return pd.Series(data=data, index = ['MeanNN','SDNN','RMSSD','pNN50','LF','HF','LFHF']).to_frame().T
+
+
+
+
+
