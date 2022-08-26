@@ -204,11 +204,15 @@ def homemade_post_hoc(df, predictor, outcome, design = 'within', subject = None,
         
 def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
 
-    n_subjects = df[subject].unique().size
+    if not subject is None:
+        n_subjects = df[subject].unique().size
+    else:
+        n_subjects = df[predictor].value_counts()[0]
     
     if test == 'pairwise_tukey':
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
-        
+        res['p-corr'] = pg.multicomp(res['p-tukey'])[1]
+
     elif test == 'pairwise_ttests_paired_paramTrue':
         res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True, padjust = 'holm')
         # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
