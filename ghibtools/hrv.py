@@ -3,6 +3,7 @@ import pandas as pd
 import neurokit2 as nk
 import matplotlib.pyplot as plt
 from .signals import time_vector, spectre
+from scipy import signal
 
 def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False):
 
@@ -56,17 +57,21 @@ def get_rsa(ecg, rsp, srate, show = False):
         nk.signal_plot([ecg_signals["ECG_Rate"], rsp_signals["RSP_Rate"], rsa], standardize=True)
     return pd.DataFrame.from_dict(rsa, orient='index').T
 
-def ecg_peaks(ecg, srate, show = False):
-    _,info = nk.ecg_peaks(ecg, sampling_rate=srate)
+def ecg_peaks(ecg, srate, method = 'neurokit', show = False):
+    if method == 'neurokit':
+        _,info = nk.ecg_peaks(ecg, sampling_rate=srate)
+        peaks = info['ECG_R_Peaks']
+
+    elif method == 'homemade':
+        peaks,_ = signal.find_peaks(ecg, distance=1000/1.5)
 
     if show: 
-        pics = info['ECG_R_Peaks']
         fig, ax = plt.subplots()
         ax.plot(ecg, label = 'ecg')
-        ax.plot(pics, ecg[pics], 'x', label = 'peaks')
+        ax.plot(peaks, ecg[peaks], 'x', label = 'peaks')
         plt.show()
         
-    return info['ECG_R_Peaks']
+    return peaks
 
 def manual_peak_correction(peaks, to_remove=None, to_add=None, sig=None, error_size = 50):
 
