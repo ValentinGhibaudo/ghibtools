@@ -4,8 +4,9 @@ import neurokit2 as nk
 import matplotlib.pyplot as plt
 from .signals import time_vector, spectre
 from scipy import signal
+from scipy.interpolate import interp1d
 
-def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False):
+def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False, method = 'scipy'):
 
     if inverse_sig:
         ecg = -ecg
@@ -21,12 +22,23 @@ def ecg_to_hrv(ecg, srate, show = False, inverse_sig = False):
         ax.plot(R_peaks, ecg[R_peaks], 'x', label = 'peaks')
         plt.show()
 
-    diff_R_peaks = np.diff(R_peaks) 
-    x = time_vector(ecg, srate)
-    xp = R_peaks[1::]/srate
-    fp = diff_R_peaks
-    interpolated_hrv = np.interp(x, xp, fp, left=None, right=None, period=None) / srate
-    fci = 60 / interpolated_hrv
+    rris = np.diff(R_peaks) 
+
+    t = time_vector(ecg, srate)
+
+    if method == 'numpy':
+        xp = R_peaks[1:]/srate
+        fp = rris
+        interpolated_hrv = np.interp(t, xp, fp, left=None, right=None, period=None) / srate
+        fci = 60 / interpolated_hrv
+
+    elif method == 'scipy':
+        x = t[R_peaks][1:]
+        y = rris
+        f = interp1d(x, y, fill_value="extrapolate", kind = 'cubic')
+        xnew = t
+        ynew = 60 * srate / f(xnew)
+        fci = ynew
     
     return fci
 

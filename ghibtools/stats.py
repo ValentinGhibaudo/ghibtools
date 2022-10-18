@@ -566,3 +566,14 @@ def lmm(df, predictor, outcome, subject, order=None):
     plt.show()
     
     return mdf
+
+
+def confidence_interval(x, confidence = 0.95, verbose = False):
+    m = x.mean() 
+    s = x.std() 
+    dof = x.size-1 
+    t_crit = np.abs(stats.t.ppf((1-confidence)/2,dof))
+    ci = (m-s*t_crit/np.sqrt(len(x)), m+s*t_crit/np.sqrt(len(x))) 
+    if verbose:
+        print(f'm : {round(m, 3)} , std : {round(s,3)} , ci : [{round(ci[0],3)};{round(ci[1],3)}]')
+    return ci
