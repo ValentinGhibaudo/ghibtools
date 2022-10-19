@@ -39,8 +39,9 @@ def get_cycle_features(zerox, srate, show = False):
             inspi_duration = transition_t - start_t
             expi_duration = stop_t - transition_t
             cycle_freq = 1 / cycle_duration
-            features.append([start, transition , stop, start_t, transition_t, stop_t, cycle_duration, inspi_duration, expi_duration, cycle_freq])
-    df_features = pd.DataFrame(features, columns = ['start','transition','stop','start_time','transition_time','stop_time', 'cycle_duration','inspi_duration','expi_duration','cycle_freq'])
+            cycle_ratio = inspi_duration / cycle_duration
+            features.append([start, transition , stop, start_t, transition_t, stop_t, cycle_duration, inspi_duration, expi_duration, cycle_freq, cycle_ratio])
+    df_features = pd.DataFrame(features, columns = ['start','transition','stop','start_time','transition_time','stop_time', 'cycle_duration','inspi_duration','expi_duration','cycle_freq','cycle_ratio'])
 
     if show:
         fig, ax = plt.subplots()
@@ -55,7 +56,7 @@ def get_cycle_features(zerox, srate, show = False):
 
 def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, show = False):
     sig = rsp - np.mean(rsp)
-    sig_filtered = gh.filter_sig(sig, srate, low, high) + manual_baseline_correction
+    sig_filtered = filter_sig(sig, srate, low, high) + manual_baseline_correction
 
     if show:
         fig, ax = plt.subplots()
