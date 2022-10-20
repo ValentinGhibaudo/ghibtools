@@ -4,15 +4,9 @@ import pandas as pd
 from .signals import filter_sig
 
 def detect_zerox(sig, show = False):
-    rises = []
-    decays = []
-    for i in range(sig.size):
-        if i != 0:
-            if np.sign(sig[i]) != np.sign(sig[i-1]):
-                if sig[i] > 0:
-                    rises.append(i)
-                elif sig[i] < 0:
-                    decays.append(i)
+
+    rises, = np.where((sig[:-1] <=0) & (sig[1:] >0))
+    decays, = np.where((sig[:-1] >=0) & (sig[1:] <0))
 
     if show:
         fig, ax = plt.subplots(figsize = (15,5))
@@ -54,13 +48,27 @@ def get_cycle_features(zerox, srate, show = False):
         plt.show()
     return df_features
 
-def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, show = False):
-    sig = rsp - np.mean(rsp)
-    sig_filtered = filter_sig(sig, srate, low, high) + manual_baseline_correction
+def clean_features(features, criteria= 'cycle_duration', n_std = 2, verbose = True):
+    sd = features[criteria].std()
+    m = features[criteria].mean()
+    borne_inf = m - n_std * sd
+    borne_sup = m + n_std * sd
+    keep_above_borne_inf = features[criteria] > borne_inf
+    keep_below_borne_sup = features[criteria] < borne_sup
+    keep = keep_above_borne_inf & keep_below_borne_sup
+    cleaned_features = features[keep]
+    if verbose:
+        print(f'{features[~keep].shape[0]} cycles removed :')
+        print(features[~keep]['start'])
+    return cleaned_features
+
+def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, cleaning = True, n_std = 2, show = False):
+    sig_centered = rsp - np.mean(rsp)
+    sig_filtered = filter_sig(sig_centered, srate, low, high) + manual_baseline_correction
 
     if show:
         fig, ax = plt.subplots()
-        ax.plot(sig, label = 'raw')
+        ax.plot(sig_centered, label = 'raw')
         ax.plot(sig_filtered, label = 'filtered')
         ax.set_title('Filtering')
         ax.legend()
@@ -69,4 +77,28 @@ def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, hi
     zerox = detect_zerox(sig_filtered, show)
     features = get_cycle_features(zerox, srate, show)
 
-    return features
+    if cleaning:
+        features_return =  clean_features(features=features, n_std=n_std)
+        if show:
+            rises = features_return['start']
+            decays = features_return['transition']
+            fig, ax = plt.subplots(figsize = (15,5))
+            ax.plot(sig_filtered)
+            ax.plot(rises, sig_filtered[rises], 'o', color = 'r', label = 'rise')
+            ax.plot(decays, sig_filtered[decays], 'o', color = 'g', label = 'decay')
+            ax.set_title('Zero-crossing - corrected')
+            ax.legend()
+            plt.show()
+
+            fig, ax = plt.subplots()
+            ax.hist(features_return['cycle_freq'], bins = 100)
+            ax.set_ylabel('n_cycles')
+            ax.set_xlabel('Freq [Hz]')
+            median_cycle = features_return['cycle_freq'].median()
+            ax.axvline(median_cycle, linestyle = '--', color='m')
+            ax.set_title(f'Median freq : {round(median_cycle, 2)}')
+            plt.show()
+    else:
+        features_return = features
+
+    return features_return
