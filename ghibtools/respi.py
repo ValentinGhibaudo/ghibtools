@@ -60,7 +60,7 @@ def clean_features(features, criteria= 'cycle_duration', n_std = 2, verbose = Tr
     if verbose:
         print(f'{features[~keep].shape[0]} cycles removed :')
         print(features[~keep]['start'])
-    return cleaned_features
+    return cleaned_features.reset_index(drop=True)
 
 def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, cleaning = True, n_std = 2, show = False):
     sig_centered = rsp - np.mean(rsp)
