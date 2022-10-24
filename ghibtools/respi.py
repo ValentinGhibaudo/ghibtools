@@ -62,7 +62,7 @@ def clean_features(features, criteria= 'cycle_duration', n_std = 2, verbose = Tr
         print(features[~keep]['start'])
     return cleaned_features.reset_index(drop=True)
 
-def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, cleaning = True, n_std = 2, show = False):
+def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, high=0.8, cleaning = True, n_std = 2, verbose = True, show = False):
     sig_centered = rsp - np.mean(rsp)
     sig_filtered = filter_sig(sig_centered, srate, low, high) + manual_baseline_correction
 
@@ -78,7 +78,7 @@ def get_resp_features(rsp, srate, manual_baseline_correction = 0, low = 0.05, hi
     features = get_cycle_features(zerox, srate, show)
 
     if cleaning:
-        features_return =  clean_features(features=features, n_std=n_std)
+        features_return =  clean_features(features=features, n_std=n_std, verbose=verbose)
         if show:
             rises = features_return['start']
             decays = features_return['transition']
