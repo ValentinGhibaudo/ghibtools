@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import neurokit2 as nk
 import matplotlib.pyplot as plt
-from .signals import time_vector, spectre
+from .signals import time_vector, spectre, norm, filter_sig
 from scipy import signal
 from scipy.interpolate import interp1d
 
@@ -416,7 +416,7 @@ def hrv_homemade(ecg, srate, mw_freq=20, mw_cycles=3, show = False):
         ax.legend()
         plt.show()
 
-    return .hrv_metrics_from_peaks(peaks, srate, time)
+    return hrv_metrics_from_peaks(peaks, srate, time)
 
 
 
