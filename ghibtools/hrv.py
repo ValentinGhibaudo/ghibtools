@@ -173,5 +173,230 @@ def get_hrv_metrics_homemade(ecg, srate, show = False):
 
 
 
+def pqrst_cycle(ecg, srate):
+    signals, info = nk.ecg_process(-ecg, srate)
+    columns = [
+        'ECG_P_Onsets',
+        'ECG_R_Onsets',
+        'ECG_Q_Peaks',
+        'ECG_R_Peaks',
+        'ECG_S_Peaks',
+        'ECG_T_Offsets',
+    ]
+
+    r, = np.nonzero(signals['ECG_R_Peaks'].values)
+    # print(r.size)
+
+    cycles = pd.DataFrame(index=np.arange(r.size), columns=[col.replace('ECG_', '') for col in columns])
+    cycles['R_Peaks'] = r / srate
+
+    for col in columns:
+        if col == 'ECG_R_Peaks':
+            continue
+        col2 = col.replace('ECG_', '')
+        ind, = np.nonzero(signals[col].values)
+
+        pre = columns.index(col) < columns.index('ECG_R_Peaks')
+
+        if pre:
+            ind = ind[ind<r[-1]]
+
+            # first cycle
+            valid, = np.nonzero(ind < r[0])
+            if valid.size == 1:
+                cycles.at[0, col2] = ind[valid[0]] / srate
+
+            for c in range(1, r.size):
+                valid, = np.nonzero((ind > r[c -1 ]) & (ind < r[c]))
+                if valid.size == 1:
+                    cycles.at[c, col2] = ind[valid[0]] / srate
+        else:
+            ind = ind[ind>r[0]]
+
+
+            for c in range(r.size -1):
+                valid, = np.nonzero((ind > r[c]) & (ind < r[c + 1]))
+                if valid.size == 1:
+                    cycles.at[c, col2] = ind[valid[0]] / srate
+
+            # last cycle
+            valid, = np.nonzero(ind > r[-1])
+            if valid.size == 1:
+                cycles.at[r.size - 1, col2] = ind[valid[0]] / srate
+
+    return cycles
+
+
+
+
+def segment_variability(participant,bloc, start_letter, stop_letter, start_pattern, stop_pattern):
+    ecg = -da.loc[participant,bloc,:].values
+    srate = 500
+    signals, info = nk.ecg_process(ecg, sampling_rate=srate)
+    sig = signals['ECG_Clean']
+    init = signals[f'ECG_{start_letter}_{start_pattern}']
+    end = signals[f'ECG_{stop_letter}_{stop_pattern}']
+
+    init_timings = np.where(init==1)[0] / srate
+    end_timings = np.where(end==1)[0] / srate
+
+    if not start_letter == stop_letter:
+        concat = []
+        for i in range(min([init_timings.size,end_timings.size])):
+            init_timing = init_timings[i]
+            end_timing = end_timings[i]
+            segment_i = end_timing - init_timing
+            concat.append(segment_i)
+        mean = np.mean(concat)
+        print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
+    else:
+        concat = []
+        for i in range(min([init_timings.size,end_timings.size])-1):
+            init_timing = init_timings[i]
+            end_timing = end_timings[i+1]
+            segment_i = end_timing - init_timing
+            concat.append(segment_i)
+        mean = np.mean(concat)
+        print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
+    return concat
+
+def segment_variability_mean(participant,bloc, start_letter, stop_letter, start_pattern, stop_pattern):
+    ecg = -da.loc[participant,bloc,:].values
+    srate = 500
+    signals, info = nk.ecg_process(ecg, sampling_rate=srate)
+    sig = signals['ECG_Clean']
+    init = signals[f'ECG_{start_letter}_{start_pattern}']
+    end = signals[f'ECG_{stop_letter}_{stop_pattern}']
+
+    init_timings = np.where(init==1)[0] / srate
+    end_timings = np.where(end==1)[0] / srate
+    if not start_letter == stop_letter:
+        concat = []
+        for i in range(min([init_timings.size,end_timings.size])):
+            init_timing = init_timings[i]
+            end_timing = end_timings[i]
+            segment_i = end_timing - init_timing
+            concat.append(segment_i)
+        mean = np.mean(concat)
+        # print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
+    else:
+        concat = []
+        for i in range(min([init_timings.size,end_timings.size])-1):
+            init_timing = init_timings[i]
+            end_timing = end_timings[i+1]
+            segment_i = end_timing - init_timing
+            concat.append(segment_i)
+        mean = np.mean(concat)
+        # print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
+    return mean
+
+
+def corr_rr_st(da, participant, bloc):
+    qt = segment_variability(da, participant,bloc, start_letter='Q', stop_letter='T', start_pattern='Peaks', stop_pattern='Offsets')
+    rr = segment_variability(da, participant,bloc, start_letter='R', stop_letter='R', start_pattern='Peaks', stop_pattern='Peaks')
+    df = pd.DataFrame()
+    df.insert(0,'rr',rr)
+    df.insert(0,'qt',qt[0:len(rr)])
+    rcorr = df.rcorr()
+    df.plot()
+    return rcorr
+
+def participants_analysis():
+    participants = ['sub01','sub02','sub03','sub04','sub05','sub06','sub07','sub08','sub09']
+    blocs = ['coherence','free','confort']
+    rows = []
+    for participant in participants:
+        print(participant)
+        for bloc in blocs:
+            print(bloc)
+            pr = segment_variability_mean(participant,bloc, start_letter='P', stop_letter='R', start_pattern='Onsets', stop_pattern='Onsets')
+            qt = segment_variability_mean(participant,bloc, start_letter='Q', stop_letter='T', start_pattern='Peaks', stop_pattern='Offsets')
+            st = segment_variability_mean(participant,bloc, start_letter='S', stop_letter='T', start_pattern='Peaks', stop_pattern='Onsets')
+            rr = segment_variability_mean(participant,bloc, start_letter='R', stop_letter='R', start_pattern='Peaks', stop_pattern='Peaks')
+
+            if pr <= 0.2:
+                pr_interpretation = 'Valide'
+            else:
+                pr_interpretation = 'BAV'
+            if st <= 0.15:
+                st_interpretation = 'Valide'
+            else:
+                st_interpretation = 'ST Long'
+            if qt <= 0.5:
+                qt_interpretation = 'Valide'
+            else:
+                qt_interpretation = 'QT Long'
+
+
+            if bloc == 'coherence':
+                FR = 0.1
+            elif bloc == 'free':
+                FR = 0.15
+            elif bloc == 'confort':
+                FR = 0.2
+            row = [participant, bloc , pr , st , qt, rr, FR ,  pr_interpretation, st_interpretation, qt_interpretation]
+            rows.append(row)
+    df = pd.DataFrame(rows , columns = ['participant','bloc','pr','st','qt','rr', 'fresp', 'PR interp','ST interp','QT interp'])
+    return df
+
+
+def plot_ecg_features(ecg):
+    signals, info = nk.ecg_process(-ecg, sampling_rate=512)
+    sig = signals['ECG_Clean']
+    p = signals['ECG_P_Onsets']
+    q = signals['ECG_R_Onsets']
+    r = signals['ECG_R_Peaks']
+    s = signals['ECG_S_Peaks']
+    t = signals['ECG_T_Offsets']
+    plt.figure()
+    plt.plot(sig)
+    plt.vlines(x = np.where(p==1) , ymin = min(signals['ECG_Clean']), ymax = max(signals['ECG_Clean']), colors = 'y')
+    plt.vlines(x = np.where(q==1) , ymin = min(signals['ECG_Clean']), ymax = max(signals['ECG_Clean']), colors = 'g')
+    plt.vlines(x = np.where(r==1) , ymin = min(signals['ECG_Clean']), ymax = max(signals['ECG_Clean']), colors = 'r')
+    plt.vlines(x = np.where(s==1) , ymin = min(signals['ECG_Clean']), ymax = max(signals['ECG_Clean']), colors = 'm')
+    plt.vlines(x = np.where(t==1) , ymin = min(signals['ECG_Clean']), ymax = max(signals['ECG_Clean']), colors = 'c')
+    # plt.plot(p_peaks*signals['ECG_P_Peaks'][p_peaks == 1] , "x")
+    plt.show()
+
+
+def plot_ecg_features_sam(ecg):
+    fig, ax = plt.subplots()
+    signals, info = nk.ecg_process(-ecg, sampling_rate=512)
+    sig = signals['ECG_Clean']
+    ax.plot(sig)
+    peaks = {
+        'ECG_P_Onsets' : 'y',
+        'ECG_R_Onsets' : 'g',
+        'ECG_Q_Peaks' : 'k',
+        'ECG_R_Peaks' : 'r',
+        'ECG_S_Peaks' : 'm',
+        'ECG_T_Offsets' : 'c',
+
+    }
+    for k, color in peaks.items():
+        x,  = np.nonzero(signals[k].values==1)
+        y = sig.values[x]
+        ax.scatter(x, y, color=color)
+
+
+def segments_cycles(cycles):
+    # cycles = cycles.dropna()
+    c = cycles.iloc[1:, :]
+    pr = c['Q_Peaks'].iloc[:-1].values - c['P_Onsets'].iloc[:-1].values
+    st = c['T_Offsets'].iloc[:-1].values - c['S_Peaks'].iloc[:-1].values
+    qt = c['T_Offsets'].iloc[:-1].values - c['Q_Peaks'].iloc[:-1].values
+    rr = c['R_Peaks'].iloc[1:].values - c['R_Peaks'].iloc[:-1].values
+    qs = c['S_Peaks'].iloc[:-1].values - c['Q_Peaks'].iloc[:-1].values
+    segments = [pr, st, qt, rr , qs]
+    segments_reshape = [ segment.reshape(segment.shape[0], 1) for segment in segments]
+    concat = np.concatenate(segments_reshape, axis = 1)
+    # print(concat.shape)
+    df = pd.DataFrame(concat, columns = ['pr','st','qt','rr','qs'])
+    df = df.astype(float)
+    df = df.dropna()
+    return df
+
+
+
 
 

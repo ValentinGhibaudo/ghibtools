@@ -227,7 +227,7 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         if n_subjects > 15:
             res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
         else:
-            res = res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
+            res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
      
     return res
 
@@ -316,7 +316,8 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
     
     if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
-        ngroups = len(list(df[predictor].unique()))
+        groups = list(df[predictor].unique())
+        ngroups = len(groups)
         
         parametricity_pre_transfo = parametric(df, predictor, outcome, subject)
         
@@ -355,7 +356,8 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             order = order
 
         estimators = pd.concat([df.groupby(predictor).mean()[outcome].reset_index(), df.groupby(predictor).std()[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
-        ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']})" for cond in order]
+        cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
+        ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
 
         if mode == 'box':
             if not post_test is None:
@@ -509,7 +511,7 @@ def permutation(df, predictor, outcome , design = 'within' , subject = None, n_r
     for pair in pairs:
         x = df[df[predictor] == pair[0]][outcome].values
         y = df[df[predictor] == pair[1]][outcome].values
-        p = permutation_test_homemade(x,y, design=design, n_resamples=n_resamples)
+        p = permutation_test_homemade(x=x,y=y, design=design, n_resamples=n_resamples)
         pvals.append(p)
     df_return = pd.DataFrame(pairs, columns = ['A','B'])
     df_return['p-unc'] = pvals
