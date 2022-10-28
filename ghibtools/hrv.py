@@ -375,6 +375,49 @@ def segments_cycles(cycles):
     df = df.dropna()
     return df
 
+def get_qrs_kernel(srate, freq=20, n=3, show = False):
+    time = np.arange(-2,2,1/srate)
+    s = n / (2 * np.pi * freq)
+    a = 1
+    GaussWin = a * np.exp( -time**2 / (2 * s**2))
+    complex_sinewave = np.exp(1j * 2 *np.pi * freq * time)
+    cmw = GaussWin * complex_sinewave
+    if show:
+        fig, ax = plt.subplots()
+        ax.plot(np.real(cmw))
+    return cmw
+
+
+def extract_ecg_qrs(ecg, srate, freq=20, n=3, exponent=3, show = False):
+    kernel = get_qrs_kernel(srate, freq=freq, n=n)
+    conv = signal.convolve(ecg, kernel, mode = 'same')
+    result = abs(conv)**exponent
+    if show:
+        fig, ax = plt.subplots()
+        ax.plot(result)
+    return result
+
+def hrv_homemade(ecg, srate, mw_freq=20, mw_cycles=3, show = False):
+    time = time_vector(ecg, srate)
+    qrs_signal = extract_ecg_qrs(ecg, srate, freq=mw_freq, n=mw_cycles)
+    peaks,_ = signal.find_peaks(qrs_signal, height=None, distance = srate/2)
+    if show :
+        ecg_clean_nk = nk.ecg_clean(ecg, sampling_rate=srate, method='neurokit')
+        peaks_nk = ecg_peaks(ecg_clean_nk, srate)
+        ecg_plot = norm(filter_sig(ecg, srate, 0.5, 40))
+        convo_plot = norm(qrs_signal)
+
+        fig, ax = plt.subplots(figsize = (15,5))
+        ax.plot(ecg_plot)
+        ax.plot(convo_plot)
+        ax.plot(peaks, ecg_plot[peaks], 'o', color = 'black', label = 'homemade peaks')
+        ax.plot(peaks_nk, ecg_plot[peaks_nk], 'x', color = 'lime', label = 'nk peaks')
+        ax.plot(peaks, convo_plot[peaks], 'x', color = 'black')
+        ax.legend()
+        plt.show()
+
+    return .hrv_metrics_from_peaks(peaks, srate, time)
+
 
 
 
