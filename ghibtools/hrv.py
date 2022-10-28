@@ -152,6 +152,25 @@ def RMSSD(RRIs):
 def pNN50(RRIs):
     return (sum(RRIs) > 50) / RRIs.size
 
+def peaks_to_fci(peaks, time):
+    srate = 1 / np.median(np.diff(time))
+    rris = peaks_to_RRI(peaks, srate)
+
+    x = time[peaks][1:]
+    y = rris
+    f = interp1d(x, y, fill_value="extrapolate", kind = 'cubic')
+    xnew = time
+    ynew = 60 * srate / f(xnew)
+    fci = ynew
+    return fci
+
+def freq_domain_metrics_from_fci(fci, srate):
+    f, Pxx = spectre(fci, srate, lowest_freq=0.04)
+    lf = np.trapz(Pxx[(f > 0.04) & (f < 0.15)])
+    hf = np.trapz(Pxx[(f > 0.15) & (f < 0.4)])
+    lfhf = lf / hf
+    return {'LF':lf, 'HF':hf, 'LFHF':lfhf}
+
 def freq_domain(ecg, srate):
     fci = ecg_to_hrv(ecg, srate)
     f, Pxx = spectre(fci, srate, lowest_freq=0.04)
@@ -159,6 +178,50 @@ def freq_domain(ecg, srate):
     hf = np.trapz(Pxx[(f > 0.15) & (f < 0.4)])
     lfhf = lf / hf
     return {'LF':lf, 'HF':hf, 'LFHF':lfhf}
+
+def Poincaré(RRIs):
+    RRI_1 = RRIs[1:]
+    RRI_1 = np.append(RRI_1, RRIs[-1]) 
+
+    SD1_val = []
+    SD2_val = []
+    for RR in range(len(RRIs)) :
+        if RR == len(RRIs)-1 :
+            continue
+        else :
+            SD1_val_tmp = (RRIs[RR+1] - RRIs[RR])/np.sqrt(2)
+            SD2_val_tmp = (RRIs[RR+1] + RRIs[RR])/np.sqrt(2)
+            SD1_val.append(SD1_val_tmp)
+            SD2_val.append(SD2_val_tmp)
+
+    SD1 = np.std(SD1_val)
+    SD2 = np.std(SD2_val)
+    Tot_HRV = SD1*SD2*np.pi
+
+    return {'SD1':SD1, 'SD2':SD2, 'S':Tot_HRV}
+
+def hrv_metrics_from_rris(rris):
+    mean_nn = MeanNN(rris)
+    sdnn = SDNN(rris)
+    rmssd = RMSSD(rris)
+    pnn50 = pNN50(rris)
+    # freqs = freq_domain(ecg, srate)
+    poincare = Poincaré(rris)
+    data = [mean_nn , sdnn , rmssd , pnn50, poincare['SD1'], poincare['SD2'] , poincare['S']]
+    return pd.Series(data=data, index = ['MeanNN','SDNN','RMSSD','pNN50','SD1','SD2','S']).to_frame().T
+
+def hrv_metrics_from_peaks(peaks, srate, time):
+    fci = peaks_to_fci(peaks, time)
+    rris = peaks_to_RRI(peaks, srate)
+
+    mean_nn = MeanNN(rris)
+    sdnn = SDNN(rris)
+    rmssd = RMSSD(rris)
+    pnn50 = pNN50(rris)
+    freqs = freq_domain_metrics_from_fci(fci, srate)
+    poincare = Poincaré(rris)
+    data = [mean_nn , sdnn , rmssd , pnn50, freqs['LF'], freqs['HF'] , freqs['LFHF'], poincare['SD1'], poincare['SD2'] , poincare['S']]
+    return pd.Series(data=data, index = ['MeanNN','SDNN','RMSSD','pNN50', 'LF','HF','LFHF','SD1','SD2','S']).to_frame().T
 
 def get_hrv_metrics_homemade(ecg, srate, show = False):
     peaks = ecg_peaks(ecg, srate)
@@ -168,13 +231,12 @@ def get_hrv_metrics_homemade(ecg, srate, show = False):
     rmssd = RMSSD(rri)
     pnn50 = pNN50(rri)
     freqs = freq_domain(ecg, srate)
-    data = [mean_nn , sdnn , rmssd , pnn50, freqs['LF'], freqs['HF'], freqs['LFHF']]
-    return pd.Series(data=data, index = ['MeanNN','SDNN','RMSSD','pNN50','LF','HF','LFHF']).to_frame().T
-
-
+    poincare = Poincaré(rri)
+    data = [mean_nn , sdnn , rmssd , pnn50, freqs['LF'], freqs['HF'], freqs['LFHF'], poincare['SD1'], poincare['SD2'] , poincare['S']]
+    return pd.Series(data=data, index = ['MeanNN','SDNN','RMSSD','pNN50','LF','HF','LFHF','SD1','SD2','S']).to_frame().T
 
 def pqrst_cycle(ecg, srate):
-    signals, info = nk.ecg_process(-ecg, srate)
+    signals, info = nk.ecg_process(ecg, srate)
     columns = [
         'ECG_P_Onsets',
         'ECG_R_Onsets',
@@ -226,40 +288,6 @@ def pqrst_cycle(ecg, srate):
 
     return cycles
 
-
-
-
-def segment_variability(participant,bloc, start_letter, stop_letter, start_pattern, stop_pattern):
-    ecg = -da.loc[participant,bloc,:].values
-    srate = 500
-    signals, info = nk.ecg_process(ecg, sampling_rate=srate)
-    sig = signals['ECG_Clean']
-    init = signals[f'ECG_{start_letter}_{start_pattern}']
-    end = signals[f'ECG_{stop_letter}_{stop_pattern}']
-
-    init_timings = np.where(init==1)[0] / srate
-    end_timings = np.where(end==1)[0] / srate
-
-    if not start_letter == stop_letter:
-        concat = []
-        for i in range(min([init_timings.size,end_timings.size])):
-            init_timing = init_timings[i]
-            end_timing = end_timings[i]
-            segment_i = end_timing - init_timing
-            concat.append(segment_i)
-        mean = np.mean(concat)
-        print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
-    else:
-        concat = []
-        for i in range(min([init_timings.size,end_timings.size])-1):
-            init_timing = init_timings[i]
-            end_timing = end_timings[i+1]
-            segment_i = end_timing - init_timing
-            concat.append(segment_i)
-        mean = np.mean(concat)
-        print(f'{start_letter}{stop_letter} moyen :' , round(mean,2))
-    return concat
-
 def segment_variability_mean(participant,bloc, start_letter, stop_letter, start_pattern, stop_pattern):
     ecg = -da.loc[participant,bloc,:].values
     srate = 500
@@ -291,57 +319,8 @@ def segment_variability_mean(participant,bloc, start_letter, stop_letter, start_
     return mean
 
 
-def corr_rr_st(da, participant, bloc):
-    qt = segment_variability(da, participant,bloc, start_letter='Q', stop_letter='T', start_pattern='Peaks', stop_pattern='Offsets')
-    rr = segment_variability(da, participant,bloc, start_letter='R', stop_letter='R', start_pattern='Peaks', stop_pattern='Peaks')
-    df = pd.DataFrame()
-    df.insert(0,'rr',rr)
-    df.insert(0,'qt',qt[0:len(rr)])
-    rcorr = df.rcorr()
-    df.plot()
-    return rcorr
-
-def participants_analysis():
-    participants = ['sub01','sub02','sub03','sub04','sub05','sub06','sub07','sub08','sub09']
-    blocs = ['coherence','free','confort']
-    rows = []
-    for participant in participants:
-        print(participant)
-        for bloc in blocs:
-            print(bloc)
-            pr = segment_variability_mean(participant,bloc, start_letter='P', stop_letter='R', start_pattern='Onsets', stop_pattern='Onsets')
-            qt = segment_variability_mean(participant,bloc, start_letter='Q', stop_letter='T', start_pattern='Peaks', stop_pattern='Offsets')
-            st = segment_variability_mean(participant,bloc, start_letter='S', stop_letter='T', start_pattern='Peaks', stop_pattern='Onsets')
-            rr = segment_variability_mean(participant,bloc, start_letter='R', stop_letter='R', start_pattern='Peaks', stop_pattern='Peaks')
-
-            if pr <= 0.2:
-                pr_interpretation = 'Valide'
-            else:
-                pr_interpretation = 'BAV'
-            if st <= 0.15:
-                st_interpretation = 'Valide'
-            else:
-                st_interpretation = 'ST Long'
-            if qt <= 0.5:
-                qt_interpretation = 'Valide'
-            else:
-                qt_interpretation = 'QT Long'
-
-
-            if bloc == 'coherence':
-                FR = 0.1
-            elif bloc == 'free':
-                FR = 0.15
-            elif bloc == 'confort':
-                FR = 0.2
-            row = [participant, bloc , pr , st , qt, rr, FR ,  pr_interpretation, st_interpretation, qt_interpretation]
-            rows.append(row)
-    df = pd.DataFrame(rows , columns = ['participant','bloc','pr','st','qt','rr', 'fresp', 'PR interp','ST interp','QT interp'])
-    return df
-
-
-def plot_ecg_features(ecg):
-    signals, info = nk.ecg_process(-ecg, sampling_rate=512)
+def plot_ecg_features(ecg, srate):
+    signals, info = nk.ecg_process(ecg, sampling_rate=srate)
     sig = signals['ECG_Clean']
     p = signals['ECG_P_Onsets']
     q = signals['ECG_R_Onsets']
@@ -359,9 +338,9 @@ def plot_ecg_features(ecg):
     plt.show()
 
 
-def plot_ecg_features_sam(ecg):
+def plot_ecg_features_sam(ecg, srate):
     fig, ax = plt.subplots()
-    signals, info = nk.ecg_process(-ecg, sampling_rate=512)
+    signals, info = nk.ecg_process(ecg, sampling_rate=srate)
     sig = signals['ECG_Clean']
     ax.plot(sig)
     peaks = {
