@@ -807,3 +807,43 @@ def get_itpc(da): # input = 3D Xarray : trials * freqs * time
                 da_itpc = init_da({'freqs':da.coords['freqs'].values, 'time':da.coords['time'].values})
             da_itpc.loc[f,t] = mean_phase_angle_over_trials
     return da_itpc # output = 2D Xarray : freqs * time
+
+def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', verbose = False, show = False):
+
+    if lowcut is None and not highcut is None:
+        btype = 'lowpass'
+        cut = highcut
+
+    if not lowcut is None and highcut is None:
+        btype = 'highpass'
+        cut = lowcut
+
+    if not lowcut is None and not highcut is None:
+        btype = 'bandpass'
+
+    if btype in ('bandpass', 'bandstop'):
+        band = [lowcut, highcut]
+        assert len(band) == 2
+        Wn = [e / srate * 2 for e in band]
+    else:
+        Wn = float(cut) / srate * 2
+
+    filter_mode = 'sos'
+    sos = signal.iirfilter(order, Wn, analog=False, btype=btype, ftype=ftype, output=filter_mode)
+    filtered_sig = signal.sosfiltfilt(sos, sig, axis=0)
+
+    if verbose:
+        print(f'{ftype} iirfilter of {order}th-order')
+        print(f'btype : {btype}')
+
+
+    if show:
+        w, h = signal.sosfreqz(sos,fs=srate)
+        fig, ax = plt.subplots()
+        ax.plot(w, np.abs(h))
+        ax.set_title('Frequency response')
+        ax.set_xlabel('Frequency [Hz]')
+        ax.set_ylabel('Amplitude')
+        plt.show()
+
+    return filtered_sig

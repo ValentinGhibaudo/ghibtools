@@ -218,13 +218,13 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
-        if n_subjects > 15:
+        if n_subjects >= 15:
             res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
         else:
             res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'between')
 
     elif test == 'pairwise_ttests_paired_paramFalse':
-        if n_subjects > 15:
+        if n_subjects >= 15:
             res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=False, padjust = 'holm')
         else:
             res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
@@ -495,7 +495,7 @@ def qqplot(df, predictor, outcome, figsize = (10,15)):
         
     plt.show()
 
-def permutation_test_homemade(x,y, design = 'within', n_resamples=9999):
+def permutation_test_homemade(x,y, design = 'within', n_resamples=999):
     def statistic(x, y):
         return np.mean(x) - np.mean(y)
     if design == 'within':

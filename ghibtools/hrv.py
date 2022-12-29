@@ -397,10 +397,10 @@ def extract_ecg_qrs(ecg, srate, freq=20, n=3, exponent=3, show = False):
         ax.plot(result)
     return result
 
-def hrv_homemade(ecg, srate, mw_freq=20, mw_cycles=3, show = False):
+def hrv_homemade(ecg, srate, mw_freq=20, mw_cycles=3, distance = 500, show = False):
     time = time_vector(ecg, srate)
     qrs_signal = extract_ecg_qrs(ecg, srate, freq=mw_freq, n=mw_cycles)
-    peaks,_ = signal.find_peaks(qrs_signal, height=None, distance = srate/2)
+    peaks,_ = signal.find_peaks(qrs_signal, height=None, distance = distance)
     if show :
         ecg_clean_nk = nk.ecg_clean(ecg, sampling_rate=srate, method='neurokit')
         peaks_nk = ecg_peaks(ecg_clean_nk, srate)
