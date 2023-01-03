@@ -110,6 +110,7 @@ def down_sample(sig, factor):
     return sig_down
 
 def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, verbose = False):
+
     """
     Compute Power Spectral Density of the signal with Welch method
 
@@ -125,6 +126,7 @@ def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, verbose = Fa
     Outputs = 
     - f : frequency vector
     - Pxx : Power Spectral Density vector (scaling = spectrum so unit = V**2)
+
     """
 
     nperseg = get_wsize(srate, lowest_freq, n_cycles)
@@ -289,13 +291,6 @@ def morlet_wavelet(a , time, m , n , freq):
     SinWin = np.sin ( 2 * np.pi * freq * time )
     MorletWavelet = GaussWin * SinWin
     return MorletWavelet
-
-def complex_mw(a , time, n , freq, m = 0):
-    s = n / (2 * np.pi * freq)
-    GaussWin = a * np.exp( -(time - m)** 2 / (2 * s**2))
-    complex_sinewave = np.exp(1j * 2 *np.pi * freq * time)
-    cmw = GaussWin * complex_sinewave
-    return cmw
 
 def extract_features_from_cmw_family(sig, time_sig, cmw_family_params, return_cmw_family=False, module_method='abs'): # cmw_family_params = {'amp':amp, 'time':time_cmw, 'n_cycles':n_cycles, 'm':m, 'range':range_freqs}
     
@@ -881,3 +876,67 @@ def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', 
         plt.show()
 
     return filtered_sig
+
+
+def complex_mw(time, n_cycles , freq, a= 1, m = 0): 
+    """
+    Create a complex morlet wavelet by multiplying a gaussian window to a complex sinewave of a given frequency
+    
+    ------------------------------
+    a = amplitude of the wavelet
+    time = time vector of the wavelet
+    n_cycles = number of cycles in the wavelet
+    freq = frequency of the wavelet
+    m = 
+    """
+    s = n_cycles / (2 * np.pi * freq)
+    GaussWin = a * np.exp( -(time - m)** 2 / (2 * s**2)) # real gaussian window
+    complex_sinewave = np.exp(1j * 2 *np.pi * freq * time) # complex sinusoidal signal
+    cmw = GaussWin * complex_sinewave
+    return cmw
+
+def morlet_family(srate, f_start, f_stop, n_steps, n_cycles):
+    """
+    Create a family of morlet wavelets
+    
+    ------------------------------
+    srate : sampling rate
+    f_start : lowest frequency of the wavelet family
+    f_stop : highest frequency of the wavelet family
+    n_steps : number of frequencies from f_start to f_stop
+    n_cycles : number of waves in the wavelet
+    """
+    tmw = np.arange(-5,5,1/srate)
+    freqs = np.linspace(f_start,f_stop,n_steps) 
+    mw_family = np.zeros((freqs.size, tmw.size), dtype = 'complex')
+    for i, fi in enumerate(freqs):
+        mw_family[i,:] = complex_mw(tmw, n_cycles = n_cycles, freq = fi)
+    return freqs, mw_family
+
+def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_exponent=2):
+    """
+    Compute time-frequency matrix by convoluting wavelets on a signal
+    
+    ------------------------------
+    Inputs =
+    - sig : the signal (1D np vector)
+    - srate : sampling rate
+    - f_start : lowest frequency of the wavelet family
+    - f_stop : highest frequency of the wavelet family
+    - n_steps : number of frequencies from f_start to f_stop
+    - n_cycles : number of waves in the wavelet
+    - amplitude_exponent : amplitude values extracted from the length of the complex vector will be raised to this exponent factor (default = 2 = V**2 as unit)
+
+    Outputs = 
+    - freqs : frequency 1D np vector
+    - power : 2D np array , axis 0 = freq, axis 1 = time
+
+    """
+    freqs, family = morlet_family(srate, f_start = f_start, f_stop = f_stop, n_step = n_steps, n_cycles = n_cycles)
+    sigs = np.tile(sig, (n_steps,1))
+    tf = signal.fftconvolve(sigs, family, mode = 'same', axes = 1)
+    power = np.abs(tf) ** amplitude_exponent
+    return freqs , power
+
+
+

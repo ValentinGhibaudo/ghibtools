@@ -310,6 +310,7 @@ def transform_data(df, outcome):
 
 
 def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None):
+    
     """
     Automatically compute statistical tests chosen based on normality & homoscedasticity of data and plot it
 
