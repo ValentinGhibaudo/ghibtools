@@ -309,7 +309,27 @@ def transform_data(df, outcome):
 
 
 
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None, homemade_posthoc = False):
+def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None):
+    """
+    Automatically compute statistical tests chosen based on normality & homoscedasticity of data and plot it
+
+    ------------
+    Inputs =
+    - df : tidy dataframe
+    - predictor : str or list of str of the column name of the predictive variable (if list --> N-way anova)
+    - outcome : column name of the outcome/target/dependent variable
+    - ax : ax on which plotting the subplot, created if None (default = None)
+    - subject : column name of the subject variable = the within factor variable
+    - design : 'within' or 'between' for repeated or independent stats , respectively
+    - mode : 'box' or 'violin' for mode of plotting
+    - transform : log transform data if True and if data are non-normally distributed & heteroscedastic , to try to do a parametric test after transformation (default = False)
+    - verbose : print idea of successfull or unsucessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
+    - order : order of xlabels (= of groups) if the plot, default = None = default order
+    
+    Output = 
+    - ax : subplot
+    
+    """
 
     if ax is None:
         fig, ax = plt.subplots()
