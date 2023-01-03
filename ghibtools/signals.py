@@ -932,7 +932,7 @@ def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_expon
     - power : 2D np array , axis 0 = freq, axis 1 = time
 
     """
-    freqs, family = morlet_family(srate, f_start = f_start, f_stop = f_stop, n_step = n_steps, n_cycles = n_cycles)
+    freqs, family = morlet_family(srate, f_start = f_start, f_stop = f_stop, n_steps = n_steps, n_cycles = n_cycles)
     sigs = np.tile(sig, (n_steps,1))
     tf = signal.fftconvolve(sigs, family, mode = 'same', axes = 1)
     power = np.abs(tf) ** amplitude_exponent
