@@ -810,6 +810,21 @@ def get_itpc(da): # input = 3D Xarray : trials * freqs * time
 
 def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', verbose = False, show = False):
 
+    """
+    IIR-Filter of signal
+
+    -------------------
+    Inputs : 
+    - sig : 1D numpy vector
+    - srate : sampling rate of the signal
+    - lowcut : lowcut of the filter. Lowpass filter if lowcut is None and highcut is not None
+    - highcut : highcut of the filter. Highpass filter if highcut is None and low is not None
+    - order : N-th order of the filter (the more the order the more the slope of the filter)
+    - ftype : Type of the IIR filter, could be butter or bessel
+    - verbose : if True, will print information of type of filter and order (default is False)
+    - show : if True, will show plot of frequency response of the filter (default is False)
+    """
+
     if lowcut is None and not highcut is None:
         btype = 'lowpass'
         cut = highcut
