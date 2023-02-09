@@ -939,4 +939,22 @@ def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_expon
     return freqs , power
 
 
+def sliding_mean(sig, nwin, mode = 'same'):
+    """
+    Sliding mean
+
+    ------
+    Inputs =
+    - sig : 1D np vector
+    - nwin : N samples in the sliding window
+    - mode : default = 'same' = size of the output (could be 'valid' or 'full', see doc scipy.signal.fftconvolve)
+
+    Output =
+    - smoothed_sig : signal smoothed
+    """
+
+    kernel = np.ones(nwin)/nwin
+    smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode)
+    return smoothed_sig
+
 
