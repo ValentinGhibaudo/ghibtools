@@ -564,7 +564,11 @@ def lmm(df, predictor, outcome, subject, order=None):
     if not order is None:
         df = reorder_df(df, predictor, order)
 
-    order = list(df[predictor].unique())
+    if isinstance(predictor, list) :
+        order = list(df[predictor[0]].unique())
+    else:
+        order = list(df[predictor].unique())
+
 
     md = smf.mixedlm(formula, data=df, groups=df[subject])
     mdf = md.fit()
@@ -582,7 +586,10 @@ def lmm(df, predictor, outcome, subject, order=None):
         sns.pointplot(data=df, x = predictor[0], y = outcome, hue = predictor[1],ax=ax)
     ax.set_title(formula)
     ticks = []
+
+
     for i, cond in enumerate(order):
+        print(cond)
         if i == 0:
             tick = cond
         else:

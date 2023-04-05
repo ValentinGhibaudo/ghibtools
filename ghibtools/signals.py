@@ -822,14 +822,14 @@ def get_itpc(da): # input = 3D Xarray : trials * freqs * time
             da_itpc.loc[f,t] = mean_phase_angle_over_trials
     return da_itpc # output = 2D Xarray : freqs * time
 
-def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', verbose = False, show = False):
+def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', verbose = False, show = False, axis = 0):
 
     """
     IIR-Filter of signal
 
     -------------------
     Inputs : 
-    - sig : 1D numpy vector
+    - sig : nd array
     - srate : sampling rate of the signal
     - lowcut : lowcut of the filter. Lowpass filter if lowcut is None and highcut is not None
     - highcut : highcut of the filter. Highpass filter if highcut is None and low is not None
@@ -859,7 +859,8 @@ def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', 
 
     filter_mode = 'sos'
     sos = signal.iirfilter(order, Wn, analog=False, btype=btype, ftype=ftype, output=filter_mode)
-    filtered_sig = signal.sosfiltfilt(sos, sig, axis=0)
+
+    filtered_sig = signal.sosfiltfilt(sos, sig, axis=axis)
 
     if verbose:
         print(f'{ftype} iirfilter of {order}th-order')
