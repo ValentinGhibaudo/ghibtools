@@ -300,7 +300,8 @@ def pval_stars(pval):
         stars = '***'
     elif pval < 0.0001:
         stars = '****'
-    elif pval >= 0.05:
+    # elif pval >= 0.05:
+    else:
         stars = 'ns'
     return stars
 
@@ -441,7 +442,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
             x = predictor[1]
             hue = predictor[0]
         
-        sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax)
+        sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax, order=order)
         title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{pval}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
         ax.set_title(title)
         
