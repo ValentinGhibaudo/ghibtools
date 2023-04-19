@@ -2,10 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import stats
-import mne
 import pandas as pd
 import xarray as xr
-from .signals import init_da
+from .signals import init_da, iirfilt
 
 def Kullback_Leibler_Distance(a, b):
     a = np.asarray(a, dtype=float)
@@ -62,7 +61,7 @@ def get_amp(sig):
     return amplitude_envelope
 
 def shuffle_sig(sig, reverse=True):
-    random_clip_index = np.random.randint(0, sig_tot.size) # create a random index along sig
+    random_clip_index = np.random.randint(0, sig.size) # create a random index along sig
     clipped_1, clipped_2 = sig[0:random_clip_index] , sig[random_clip_index:] # clip sig at this random index
     
     if reverse:
@@ -76,8 +75,8 @@ def get_phase_amplitude_vectors(sig, modulant_freqs, target_freqs, srate, show =
     
     sig = sig - np.mean(sig) # center sig
     
-    modulant_filtered_sig = mne.filter.filter_data(sig, sfreq=srate, l_freq = modulant_freqs[0], h_freq=modulant_freqs[1], verbose = False)
-    target_filtered_sig = mne.filter.filter_data(sig, sfreq=srate, l_freq = target_freqs[0], h_freq=target_freqs[1], verbose = False)
+    modulant_filtered_sig = iirfilt(sig, srate, lowcut = modulant_freqs[0], highcut=modulant_freqs[1])
+    target_filtered_sig = iirfilt(sig, srate, lowcut = target_freqs[0], highcut=target_freqs[1])
     phase_modulant = get_phase(modulant_filtered_sig)
     amp_target = get_amp(target_filtered_sig)
     
@@ -162,7 +161,7 @@ def get_heights_ratio(distrib):
 
 def psd_of_amplitude_envelope(sig, target_freqs, srate, nperseg, show = False):
     sig = sig - np.mean(sig)
-    filtered_sig_target = mne.filter.filter_data(sig, sfreq=srate, l_freq = target_freqs[0], h_freq=target_freqs[1], verbose = False)
+    filtered_sig_target = iirfilt(sig, srate, lowcut = target_freqs[0], highcut=target_freqs[1])
     amp_target = get_amp(filtered_sig_target)
     f, Pxx = signal.welch(amp_target, fs=srate, nperseg = nperseg)
     dominant_freq = f[np.argmax(Pxx)]
@@ -202,7 +201,7 @@ def correlation_coefficient(sig, modulant_freqs, target_freqs, srate):
 
 def coherence_value(sig, target_freqs, srate, show=False):
     sig = sig - np.mean(sig)
-    filtered_sig_target = mne.filter.filter_data(sig, sfreq=srate, l_freq = target_freqs[0], h_freq=target_freqs[1], verbose = False)
+    filtered_sig_target = iirfilt(sig, srate, lowcut = target_freqs[0], highcut = target_freqs[1])
     amp_target = get_amp(filtered_sig_target)
     f, Cxy = signal.coherence(amp_target, sig, fs=srate, nperseg=srate*2)
     dominant_freq = f[np.argmax(Cxy)]
