@@ -939,23 +939,28 @@ def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_expon
     power = np.abs(tf) ** amplitude_exponent
     return freqs , power
 
-
 def sliding_mean(sig, nwin, mode = 'same', axis = -1):
     """
     Sliding mean
-
     ------
     Inputs =
-    - sig : 1D np vector
+    - sig : np array 1 or 2 dimensions
     - nwin : N samples in the sliding window
     - mode : default = 'same' = size of the output (could be 'valid' or 'full', see doc scipy.signal.fftconvolve)
-
+    - axis : axis on which sliding mean is computed (useful only in case of 2 dims np array)
     Output =
     - smoothed_sig : signal smoothed
     """
-
-    kernel = np.ones(nwin)/nwin
-    smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode, axes = axis)
-    return smoothed_sig
+    if sig.ndim == 1:
+        kernel = np.ones(nwin) / nwin
+        smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode)
+        return smoothed_sig
+    elif sig.ndim == 2:
+        shape = (sig.shape[0], nwin)
+        kernel = np.ones(shape) / nwin
+        smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode, axes = axis)
+        return smoothed_sig
+    else:
+        raise ValueError('Number of dimensions must be <= 2')
 
 
