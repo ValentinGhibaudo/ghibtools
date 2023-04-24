@@ -154,7 +154,7 @@ def coherence(sig1,sig2, srate, lowest_freq, n_cycles = 5, nfft_factor = 2, verb
         print(f'nwindows : {n_windows}')
     return f, Cxy
 
-def init_da(coords, name = None):
+def init_da(coords, name = None, values = np.nan):
     dims = list(coords.keys())
     coords = coords
 
@@ -164,7 +164,7 @@ def init_da(coords, name = None):
         return size
 
     shape = tuple([size_of(element) for element in list(coords.values())])
-    data = np.zeros(shape)
+    data = np.full(shape, values)
     da = xr.DataArray(data=data, dims=dims, coords=coords, name = name)
     return da
 
