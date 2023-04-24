@@ -940,7 +940,7 @@ def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_expon
     return freqs , power
 
 
-def sliding_mean(sig, nwin, mode = 'same'):
+def sliding_mean(sig, nwin, mode = 'same', axis = -1):
     """
     Sliding mean
 
@@ -955,7 +955,7 @@ def sliding_mean(sig, nwin, mode = 'same'):
     """
 
     kernel = np.ones(nwin)/nwin
-    smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode)
+    smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode, axes = axis)
     return smoothed_sig
 
 
