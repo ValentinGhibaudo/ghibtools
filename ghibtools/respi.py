@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from .signals import filter_sig
-from .stats import mad
+from .stats import med_mad
 
 def detect_zerox(sig, show = False):
     """
@@ -97,5 +97,6 @@ def robust_zscore(sig): # center by median and reduce by std
     return (sig - np.median(sig)) / np.std(sig)
 
 def robust_mad_scaling(sig): # center by median and reduce by mad
-    return (sig - np.median(sig)) / mad(sig)
+    med, mad = med_mad(sig)
+    return (sig - med) / mad
 
