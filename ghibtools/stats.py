@@ -295,11 +295,13 @@ def transform_data(df, outcome):
 
 def readable_pval(pval):
     if pval < 0.01 and pval >= 0.001:
-        return 'p < 0.01'
-    elif pval < 0.001:
-        return 'p < 0.001'
+        return ' < 0.01'
+    elif pval < 0.001 and pval >= 0.0001:
+        return ' < 0.001'
+    elif pval < 0.0001:
+        return ' < 0.0001'
     else:
-        return str(round(pval,4))
+        return f' = {round(pval, 3)}'
 
 def auto_stats(df, 
                 predictor, 
@@ -329,7 +331,7 @@ def auto_stats(df,
     - design : 'within' or 'between' for repeated or independent stats , respectively
     - mode : 'box' or 'violin' for mode of plotting
     - transform : log transform data if True and if data are non-normally distributed & heteroscedastic , to try to do a parametric test after transformation (default = False)
-    - verbose : print idea of successfull or unsucessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
+    - verbose : print idea of successfull or unsuccessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
     - order : order of xlabels (= of groups) if the plot, default = None = default order
     - with_title : return ax with title if True(default = True)
     - xtick_info : return ax with descriptive statistics under xtick labels if True (default = True)
@@ -365,12 +367,12 @@ def auto_stats(df,
         else:
             parametricity = parametricity_pre_transfo
         
-        tests = guidelines(df, predictor, outcome, design, parametricity)
+        tests = guidelines(df, predictor, design, parametricity)
         
         pre_test = tests['pre']
         post_test = tests['post']
         results = pg_compute_pre(df, predictor, outcome, pre_test, subject)
-        pval = round(results['p'], 4)
+        pval = results['p']
         readable_p = readable_pval(pval)
         
         if not results['es'] is None:
@@ -406,15 +408,15 @@ def auto_stats(df,
         
         if design == 'between':
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{readable_p}')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{readable_p}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         elif design == 'within':
             n_subjects = df[subject].unique().size
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{readable_p}')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{readable_p}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         
 
     elif isinstance(predictor, list):
@@ -449,11 +451,11 @@ def auto_stats(df,
             hue = predictor[0]
         readable_p = readable_pval(pval)
         sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax, order=order)
-        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
+        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
         ax.set_title(title)
     
     if not with_title:
-        ax.set_title()
+        ax.set_title(None)
 
     if not return_pval:
         return ax
