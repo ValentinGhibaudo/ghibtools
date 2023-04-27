@@ -8,14 +8,13 @@ from scipy import stats
 import itertools
 import statsmodels.formula.api as smf
 
-def mad(data, constant = 1.4826):
+def med_mad(data, constant = 1.4826):
     median = np.median(data)
-    return np.median(np.abs(data - median)) * constant
+    mad = np.median(np.abs(data - median)) * constant
+    return median , mad
 
 def normality(df, predictor, outcome):
     df = df.reset_index(drop=True)
-    groups = list(set(df[predictor]))
-    n_groups = len(groups)
 
     normalities = pg.normality(data = df , dv = outcome, group = predictor)['normal']
     
@@ -36,14 +35,12 @@ def homoscedasticity(df, predictor, outcome):
 
 def parametric(df, predictor, outcome, subject = None):
     df = df.reset_index(drop=True)
-    groups = list(set(df[predictor]))
-    n_groups = len(groups)
-    
+    n_groups = df[predictor].unique().size
     normal = normality(df, predictor, outcome)
 
-    if subject is None:
+    if n_groups < 3: # in case of potential ttest
         equal_var = homoscedasticity(df, predictor, outcome)
-    else:
+    else: # in case of potential anova
         equal_var = sphericity(df, predictor, outcome, subject)
     
     if normal and equal_var:
@@ -54,9 +51,9 @@ def parametric(df, predictor, outcome, subject = None):
     return parametricity
 
 
-def guidelines(df, predictor, outcome, design, parametricity):
+def guidelines(df, predictor, design, parametricity):
         
-    n_groups = len(list(set(df[predictor])))
+    n_groups = df[predictor].unique().size
     
     if parametricity:
         if n_groups <= 2:
@@ -219,7 +216,6 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
 
     elif test == 'pairwise_ttests_paired_paramTrue':
         res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True, padjust = 'holm')
-        # res = homemade_post_hoc(df = df, outcome=outcome, predictor=predictor, design = 'within', subject=subject, parametric=True)
         
     elif test == 'pairwise_ttests_ind_paramFalse':
         if n_subjects >= 15:
@@ -235,19 +231,6 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
      
     return res
 
-def auto_annotated_stats(df, predictor, outcome, test):
-    
-    x = predictor
-    y = outcome
-
-    order = list(set(df[predictor]))
-
-    ax = sns.boxplot(data=df, x=x, y=y, order=order)
-    pairs=[(order[0],order[1])]
-    annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order)
-    annotator.configure(test=test, text_format='star', loc='inside')
-    annotator.apply_and_annotate()
-    # plt.show()
 
 def custom_annotated_two(df, predictor, outcome, order, pval, ax=None, plot_mode = 'box'):
         
@@ -300,7 +283,6 @@ def pval_stars(pval):
         stars = '***'
     elif pval < 0.0001:
         stars = '****'
-    # elif pval >= 0.05:
     else:
         stars = 'ns'
     return stars
@@ -311,10 +293,28 @@ def transform_data(df, outcome):
     df_transfo[outcome] = np.log(df[outcome])
     return df_transfo  
 
+def readable_pval(pval):
+    if pval < 0.01 and pval >= 0.001:
+        return 'p < 0.01'
+    elif pval < 0.001:
+        return 'p < 0.001'
+    else:
+        return str(round(pval,4))
 
-
-
-def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', mode = 'box', transform=False, verbose=True, order = None):
+def auto_stats(df, 
+                predictor, 
+                outcome, 
+                ax=None, 
+                subject=None, 
+                design='within', 
+                mode = 'box', 
+                transform=False, 
+                verbose=True, 
+                order = None, 
+                with_title = True,
+                xtick_info = True,
+                return_pval = False
+                ):
     
     """
     Automatically compute statistical tests chosen based on normality & homoscedasticity of data and plot it
@@ -331,7 +331,10 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
     - transform : log transform data if True and if data are non-normally distributed & heteroscedastic , to try to do a parametric test after transformation (default = False)
     - verbose : print idea of successfull or unsucessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
     - order : order of xlabels (= of groups) if the plot, default = None = default order
-    
+    - with_title : return ax with title if True(default = True)
+    - xtick_info : return ax with descriptive statistics under xtick labels if True (default = True)
+    - return_pval : return pval with ax if True (default = False)
+
     Output = 
     - ax : subplot
     
@@ -368,6 +371,7 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         post_test = tests['post']
         results = pg_compute_pre(df, predictor, outcome, pre_test, subject)
         pval = round(results['p'], 4)
+        readable_p = readable_pval(pval)
         
         if not results['es'] is None:
             es = round(results['es'], 3)
@@ -391,8 +395,10 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
                 ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
             else:
                 ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
-            ax.set_xticks(range(ngroups))
-            ax.set_xticklabels(ticks_estimators)
+
+            if xtick_info:
+                ax.set_xticks(range(ngroups))
+                ax.set_xticklabels(ticks_estimators)
             
         elif mode == 'distribution':
             # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
@@ -400,17 +406,17 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         
         if design == 'between':
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{pval}')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p-{readable_p}, {es_label} : {es} ({es_inter})')
         elif design == 'within':
             n_subjects = df[subject].unique().size
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{pval}')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{pval}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p-{readable_p}, {es_label} : {es} ({es_inter})')
+        
 
-    
     elif isinstance(predictor, list):
         
         if design == 'within':
@@ -441,12 +447,18 @@ def auto_stats(df, predictor, outcome, ax=None, subject=None, design='within', m
         else:
             x = predictor[1]
             hue = predictor[0]
-        
+        readable_p = readable_pval(pval)
         sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax, order=order)
-        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{pval}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
+        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr-{readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}-{ppred_0} , p-{predictor[1]}-{ppred_1}'
         ax.set_title(title)
-        
-    return ax
+    
+    if not with_title:
+        ax.set_title()
+
+    if not return_pval:
+        return ax
+    else:
+        return ax, pval
 
 
 def virer_outliers(df, predictor, outcome, deviations = 5):
