@@ -315,7 +315,9 @@ def auto_stats(df,
                 order = None, 
                 with_title = True,
                 xtick_info = True,
-                return_pval = False
+                return_pval = False,
+                outcome_clean_label = None,
+                outcome_unit = None
                 ):
     
     """
@@ -336,6 +338,8 @@ def auto_stats(df,
     - with_title : return ax with title if True(default = True)
     - xtick_info : return ax with descriptive statistics under xtick labels if True (default = True)
     - return_pval : return pval with ax if True (default = False)
+    - outcome_clean_label : string clean label name of the outcome to verbose title and ytick
+    - outcome_unit : unit of the outcome to verbose ytick
 
     Output = 
     - ax : subplot
@@ -344,6 +348,9 @@ def auto_stats(df,
 
     if ax is None:
         fig, ax = plt.subplots()
+    
+    if outcome_clean_label is None:
+        outcome_clean_label = outcome.copy()
     
     if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
@@ -384,13 +391,7 @@ def auto_stats(df,
         
         if order is None:
             order = list(df[predictor].unique())
-        else:
-            order = order
-
-        estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
-        cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
-        ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
-
+        
         if mode == 'box':
             if not post_test is None:
                 post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
@@ -400,7 +401,23 @@ def auto_stats(df,
 
             if xtick_info:
                 ax.set_xticks(range(ngroups))
+
+                cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
+
+                if parametricity:
+                    estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
+                    ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
+                    
+                else:
+                    ticks_estimators = []
+                    for cond, ci in zip(order, cis): 
+                        med, mad = med_mad(df[df[predictor] == cond][outcome])
+                        med, mad = round(med,2) , round(mad, 2)
+                        ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
+                        ticks_estimators.append(ticks_estimator_cond)
+
                 ax.set_xticklabels(ticks_estimators)
+
             
         elif mode == 'distribution':
             # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
@@ -408,15 +425,15 @@ def auto_stats(df,
         
         if design == 'between':
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
+                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         elif design == 'within':
             n_subjects = df[subject].unique().size
             if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
+                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
             else:
-                ax.set_title(f'Effect of {predictor} on {outcome} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         
 
     elif isinstance(predictor, list):
@@ -451,11 +468,16 @@ def auto_stats(df,
             hue = predictor[0]
         readable_p = readable_pval(pval)
         sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax, order=order)
-        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
+        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome_clean_label} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
         ax.set_title(title)
     
     if not with_title:
         ax.set_title(None)
+
+    if outcome_unit is not None:
+        ax.set_ylabel(f'{outcome_clean_label} [{outcome_unit}]')
+    else:
+        ax.set_ylabel(outcome_clean_label)
 
     if not return_pval:
         return ax
