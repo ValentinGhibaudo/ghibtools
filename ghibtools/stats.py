@@ -232,19 +232,15 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
     return res
 
 
-def custom_annotated_two(df, predictor, outcome, order, pval, ax=None, plot_mode = 'box'):
+def custom_annotated_two(df, predictor, outcome, order, pval, ax=None):
         
     stars = pval_stars(pval)
     
     x = predictor
     y = outcome
 
-    order = order
     formatted_pvalues = [f"{stars}"]
-    if plot_mode == 'box':
-        ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax)
-    elif plot_mode == 'violin':
-        ax = sns.violinplot(data=df, x=x, y=y, order=order, bw = 0.08)
+    ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax, fliersize = 0)
     pairs=[(order[0],order[1])]
     annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order, verbose = False)
     annotator.configure(test='test', text_format='star', loc='inside')
@@ -252,21 +248,16 @@ def custom_annotated_two(df, predictor, outcome, order, pval, ax=None, plot_mode
     annotator.annotate()
     return ax
 
-def custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=None, plot_mode = 'box'):
+def custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=None):
         
     pvalues = list(post_hoc['p-corr'])
 
     x = predictor
     y = outcome
 
-    order = order
     pairs = [tuple(post_hoc.loc[i,['A','B']]) for i in range(post_hoc.shape[0])]
     formatted_pvalues = [f"{pval_stars(pval)}" for pval in pvalues]
-    if plot_mode == 'box':
-        ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax)
-    elif plot_mode == 'violin':
-        ax = sns.violinplot(data=df, x=x, y=y, order=order, bw= 0.08)
-    
+    ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax, fliersize = 0)
     annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order, verbose = False)
     annotator.configure(test='test', text_format='star', loc='inside')
     annotator.set_custom_annotations(formatted_pvalues)
@@ -309,7 +300,6 @@ def auto_stats(df,
                 ax=None, 
                 subject=None, 
                 design='within', 
-                mode = 'box', 
                 transform=False, 
                 verbose=True, 
                 order = None, 
@@ -317,11 +307,13 @@ def auto_stats(df,
                 xtick_info = True,
                 return_pval = False,
                 outcome_clean_label = None,
-                outcome_unit = None
+                outcome_unit = None,
+                strip = True,
+                lines = True
                 ):
     
     """
-    Automatically compute statistical tests chosen based on normality & homoscedasticity of data and plot it
+    Automatically compute and plot statistical tests chosen based on normality & homoscedasticity (or sphericity) of data
 
     ------------
     Inputs =
@@ -331,7 +323,6 @@ def auto_stats(df,
     - ax : ax on which plotting the subplot, created if None (default = None)
     - subject : column name of the subject variable = the within factor variable
     - design : 'within' or 'between' for repeated or independent stats , respectively
-    - mode : 'box' or 'violin' for mode of plotting
     - transform : log transform data if True and if data are non-normally distributed & heteroscedastic , to try to do a parametric test after transformation (default = False)
     - verbose : print idea of successfull or unsuccessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
     - order : order of xlabels (= of groups) if the plot, default = None = default order
@@ -340,6 +331,8 @@ def auto_stats(df,
     - return_pval : return pval with ax if True (default = False)
     - outcome_clean_label : string clean label name of the outcome to verbose title and ytick
     - outcome_unit : unit of the outcome to verbose ytick
+    - strip : Draw one dot per subject (default = True)
+    - lines : Draw one line per subject (default = True)
 
     Output = 
     - ax : subplot
@@ -350,7 +343,7 @@ def auto_stats(df,
         fig, ax = plt.subplots()
     
     if outcome_clean_label is None:
-        outcome_clean_label = outcome.copy()
+        outcome_clean_label = outcome
     
     if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
@@ -392,36 +385,34 @@ def auto_stats(df,
         if order is None:
             order = list(df[predictor].unique())
         
-        if mode == 'box':
-            if not post_test is None:
-                post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
-                ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
+        if not post_test is None:
+            post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
+            ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
+
+        else:
+            ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
+
+        
+        if xtick_info:
+            ax.set_xticks(range(ngroups))
+
+            cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
+
+            if parametricity:
+                estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
+                ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
+                
             else:
-                ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
+                ticks_estimators = []
+                for cond, ci in zip(order, cis): 
+                    med, mad = med_mad(df[df[predictor] == cond][outcome])
+                    med, mad = round(med,2) , round(mad, 2)
+                    ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
+                    ticks_estimators.append(ticks_estimator_cond)
 
-            if xtick_info:
-                ax.set_xticks(range(ngroups))
-
-                cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
-
-                if parametricity:
-                    estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
-                    ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
-                    
-                else:
-                    ticks_estimators = []
-                    for cond, ci in zip(order, cis): 
-                        med, mad = med_mad(df[df[predictor] == cond][outcome])
-                        med, mad = round(med,2) , round(mad, 2)
-                        ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
-                        ticks_estimators.append(ticks_estimator_cond)
-
-                ax.set_xticklabels(ticks_estimators)
+            ax.set_xticklabels(ticks_estimators)
 
             
-        elif mode == 'distribution':
-            # ax = sns.histplot(df, x=outcome, hue = predictor, kde = True, ax=ax)
-            ax = sns.kdeplot(data=df, x=outcome, hue = predictor, ax=ax, bw_adjust = 0.6)
         
         if design == 'between':
             if es_label is None:
@@ -435,6 +426,12 @@ def auto_stats(df,
             else:
                 ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         
+        if strip is True:
+            sns.stripplot(x=predictor, y=outcome, data=df, color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
+
+        if lines is True and design == 'within':
+            sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = 'dark:black', ax=ax)
+
 
     elif isinstance(predictor, list):
         
