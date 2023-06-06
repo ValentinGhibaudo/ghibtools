@@ -344,6 +344,12 @@ def auto_stats(df,
     
     if outcome_clean_label is None:
         outcome_clean_label = outcome
+
+    if not order is None:
+        if type(predictor) is str:
+            df = reorder_df(df=df, colname=predictor, order=order).reset_index(drop = True)
+        elif type(predictor) is list:
+            df = reorder_df(df=df, colname=predictor[0], order=order).reset_index(drop = True)
     
     if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
