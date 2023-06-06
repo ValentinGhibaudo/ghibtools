@@ -350,6 +350,8 @@ def auto_stats(df,
             df = reorder_df(df=df, colname=predictor, order=order).reset_index(drop = True)
         elif type(predictor) is list:
             df = reorder_df(df=df, colname=predictor[0], order=order).reset_index(drop = True)
+    else:
+        order = list(df[predictor].unique())
     
     if isinstance(predictor, str):
         N = df[predictor].value_counts()[0]
@@ -387,9 +389,7 @@ def auto_stats(df,
             es = results['es']
         es_label = results['es_label']
         es_inter = results['es_interp']
-        
-        if order is None:
-            order = list(df[predictor].unique())
+
         
         if not post_test is None:
             post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
@@ -433,7 +433,7 @@ def auto_stats(df,
                 ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
         
         if strip is True:
-            sns.stripplot(x=predictor, y=outcome, data=df, color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
+            sns.stripplot(x=predictor, y=outcome, data=df, order=order , color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
 
         if lines is True and design == 'within':
             sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = 'dark:black', ax=ax)
