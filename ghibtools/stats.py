@@ -309,7 +309,8 @@ def auto_stats(df,
                 outcome_clean_label = None,
                 outcome_unit = None,
                 strip = True,
-                lines = True
+                lines = True,
+                title_info = 'short'
                 ):
     
     """
@@ -333,6 +334,7 @@ def auto_stats(df,
     - outcome_unit : unit of the outcome to verbose ytick
     - strip : Draw one dot per subject (default = True)
     - lines : Draw one line per subject (default = True)
+    - title_info : could be 'short' or 'full' according to the verbosity of the title (default = 'short')
 
     Output = 
     - ax : subplot
@@ -419,19 +421,31 @@ def auto_stats(df,
             ax.set_xticklabels(ticks_estimators)
 
             
-        
-        if design == 'between':
-            if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
-            else:
-                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
-        elif design == 'within':
-            n_subjects = df[subject].unique().size
-            if es_label is None:
-                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
-            else:
-                ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
-        
+        if title_info == 'full':
+            if design == 'between':
+                if es_label is None:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
+                else:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+            elif design == 'within':
+                n_subjects = df[subject].unique().size
+                if es_label is None:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
+                else:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+        elif title_info == 'short':
+            if design == 'between':
+                if es_label is None:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}')
+                else:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+            elif design == 'within':
+                n_subjects = df[subject].unique().size
+                if es_label is None:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects \n {pre_test} : p{readable_p}')
+                else:
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+
         if strip is True:
             sns.stripplot(x=predictor, y=outcome, data=df, order=order , color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
 
