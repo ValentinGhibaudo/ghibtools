@@ -868,7 +868,7 @@ def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', 
 
 
     if show:
-        w, h = signal.sosfreqz(sos,fs=srate)
+        w, h = signal.sosfreqz(sos,fs=srate, worN = 2**18)
         fig, ax = plt.subplots()
         ax.plot(w, np.abs(h))
         ax.set_title('Frequency response')
