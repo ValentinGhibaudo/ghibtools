@@ -871,6 +871,9 @@ def iirfilt(sig, srate, lowcut=None, highcut=None, order = 4, ftype = 'butter', 
         w, h = signal.sosfreqz(sos,fs=srate, worN = 2**18)
         fig, ax = plt.subplots()
         ax.plot(w, np.abs(h))
+        ax.scatter(w, np.abs(h), color = 'k', alpha = 0.5)
+        full_energy = w[np.abs(h) >= 0.99]
+        ax.axvspan(xmin = full_energy[0], xmax = full_energy[-1], alpha = 0.1)
         ax.set_title('Frequency response')
         ax.set_xlabel('Frequency [Hz]')
         ax.set_ylabel('Amplitude')
