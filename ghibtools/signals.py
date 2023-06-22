@@ -109,7 +109,7 @@ def down_sample(sig, factor):
     sig_down = signal.decimate(sig, q=factor, n=None, ftype='iir', axis=- 1, zero_phase=True)
     return sig_down
 
-def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, verbose = False):
+def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, scaling = 'spectrum', verbose = False):
 
     """
     Compute Power Spectral Density of the signal with Welch method
@@ -122,6 +122,7 @@ def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, verbose = Fa
     - n_cycles : Minimum cycles of the lowest frequency in the window size (default = 5)
     - nfft_factor : Factor of zero-padding (default = 1)
     - verbose : if True, print informations about windows length (default = False)
+    - scaling : 'spectrum' or 'density' (cf scipy.signal.welch) (default = 'scaling')
 
     Outputs = 
     - f : frequency vector
@@ -131,7 +132,7 @@ def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, verbose = Fa
 
     nperseg = get_wsize(srate, lowest_freq, n_cycles)
     nfft = int(nperseg * nfft_factor)
-    f, Pxx = signal.welch(sig, fs=srate, nperseg = nperseg , nfft = nfft, scaling='spectrum')
+    f, Pxx = signal.welch(sig, fs=srate, nperseg = nperseg , nfft = nfft, scaling=scaling)
 
     if verbose:
         n_windows = 2 * sig.size // nperseg
