@@ -665,3 +665,21 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     if verbose:
         print(f'm : {round(m, 3)} , std : {round(s,3)} , ci : [{round(ci[0],3)};{round(ci[1],3)}]')
     return ci
+
+
+def stats_quantitative(df, xlabel, ylabel, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    x = both[xlabel]
+    y = both[ylabel]
+
+    res = stats.linregress(x, y)
+    ax.plot(x, res.intercept + res.slope*x, 'r', label='fitted line')
+    ax.scatter(x = x, y=y, alpha = 0.8)
+    r = both.corr(method = 'spearman', numeric_only = True).loc[xlabel,ylabel]
+    ax.set_title(f'Correlation : {round(r, 3)}, R² : {round(res.rvalue **2, 3)}')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    return ax
