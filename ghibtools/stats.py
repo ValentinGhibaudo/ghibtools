@@ -671,16 +671,16 @@ def stats_quantitative(df, xlabel, ylabel, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
 
-    x = both[xlabel]
-    y = both[ylabel]
+    x = df[xlabel]
+    y = df[ylabel]
 
     res = stats.linregress(x, y)
     ax.plot(x, res.intercept + res.slope*x, 'r', label='fitted line')
     ax.scatter(x = x, y=y, alpha = 0.8)
-    r = both.corr(method = 'spearman', numeric_only = True).loc[xlabel,ylabel]
+    r = df.corr(method = 'spearman', numeric_only = True).loc[xlabel,ylabel]
     stars = pval_stars(res.pvalue)
     ax.set_title(f'Correlation : {round(r, 3)}, R² : {round(res.rvalue **2, 3)}, pval : {stars}')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-
+#
     return ax
