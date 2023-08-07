@@ -105,18 +105,18 @@ def time_vector(sig, srate):
     time = np.arange(0, sig.size / srate , 1 / srate)
     return time
 
-def down_sample(sig, factor): 
-    sig_down = signal.decimate(sig, q=factor, n=None, ftype='iir', axis=- 1, zero_phase=True)
+def down_sample(sig, factor, axis=-1): 
+    sig_down = signal.decimate(sig, q=factor, n=None, ftype='iir', axis=axis, zero_phase=True)
     return sig_down
 
-def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, scaling = 'spectrum', verbose = False):
+def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, axis = -1, scaling = 'spectrum', verbose = False):
 
     """
     Compute Power Spectral Density of the signal with Welch method
 
     -----------------
     Inputs =
-    - sig : 1D np vector
+    - sig : Nd array with time in last dim
     - srate : samping rate
     - lowest_freq : Lowest frequency of interest, window sizes will be automatically computed based on this freq and set min number of cycle in window
     - n_cycles : Minimum cycles of the lowest frequency in the window size (default = 5)
@@ -132,7 +132,7 @@ def spectre(sig, srate, lowest_freq, n_cycles = 5, nfft_factor = 1, scaling = 's
 
     nperseg = get_wsize(srate, lowest_freq, n_cycles)
     nfft = int(nperseg * nfft_factor)
-    f, Pxx = signal.welch(sig, fs=srate, nperseg = nperseg , nfft = nfft, scaling=scaling)
+    f, Pxx = signal.welch(sig, fs=srate, nperseg = nperseg , nfft = nfft, scaling=scaling, axis=axis)
 
     if verbose:
         n_windows = 2 * sig.size // nperseg
