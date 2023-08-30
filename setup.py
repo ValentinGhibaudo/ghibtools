@@ -1,7 +1,6 @@
  
   
 from setuptools import setup
-import os
 
 d = {}
 exec(open("ghibtools/version.py").read(), None, d)
@@ -12,6 +11,12 @@ install_requires = [
                     'scipy',
                     'pandas',
                     'xarray',
+                    'matplotlib',
+                    'scikit-learn',
+                    'neurokit2',
+                    'seaborn',
+                    'statsmodels',
+                    'pingouin',
                     ]
 
 long_description = ""
@@ -22,7 +27,7 @@ setup(
     packages = ['ghibtools'],
     install_requires=install_requires,
     author = "V. Ghibaudo",
-    author_email = "",
+    author_email = "valentin.ghibaudo@inserm.fr",
     description = "Toolbox from Valentin Ghibaudo, Neuroscience PhD Student",
     long_description = long_description,
     license = "MIT",

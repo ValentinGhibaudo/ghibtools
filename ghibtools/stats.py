@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pingouin as pg
 import seaborn as sns
-from statannotations.Annotator import Annotator
 import matplotlib.pyplot as plt
 from scipy import stats
 import itertools
@@ -230,41 +229,7 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
             res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'within')
      
     return res
-
-
-def custom_annotated_two(df, predictor, outcome, order, pval, ax=None):
         
-    stars = pval_stars(pval)
-    
-    x = predictor
-    y = outcome
-
-    formatted_pvalues = [f"{stars}"]
-    ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax, fliersize = 0)
-    pairs=[(order[0],order[1])]
-    annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order, verbose = False)
-    annotator.configure(test='test', text_format='star', loc='inside')
-    annotator.set_custom_annotations(formatted_pvalues)
-    annotator.annotate()
-    return ax
-
-def custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=None):
-        
-    pvalues = list(post_hoc['p-corr'])
-
-    x = predictor
-    y = outcome
-
-    pairs = [tuple(post_hoc.loc[i,['A','B']]) for i in range(post_hoc.shape[0])]
-    formatted_pvalues = [f"{pval_stars(pval)}" for pval in pvalues]
-    ax = sns.boxplot(data=df, x=x, y=y, order=order, ax=ax, fliersize = 0)
-    annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order, verbose = False)
-    annotator.configure(test='test', text_format='star', loc='inside')
-    annotator.set_custom_annotations(formatted_pvalues)
-    annotator.annotate()
-    return ax
-
-             
 def pval_stars(pval):
     if pval < 0.05 and pval >= 0.01:
         stars = '*'
@@ -310,7 +275,8 @@ def auto_stats(df,
                 outcome_unit = None,
                 strip = True,
                 lines = True,
-                title_info = 'short'
+                title_info = 'short',
+                multicomp_correction = True
                 ):
     
     """
@@ -335,6 +301,7 @@ def auto_stats(df,
     - strip : Draw one dot per subject (default = True)
     - lines : Draw one line per subject (default = True)
     - title_info : could be 'short' or 'full' according to the verbosity of the title (default = 'short')
+    - multicomp_correction : if two or more predictors, some detailed stats will be displayed and pvalue corrected if True (default = True)
 
     Output = 
     - ax : subplot
@@ -353,9 +320,12 @@ def auto_stats(df,
         elif type(predictor) is list:
             df = reorder_df(df=df, colname=predictor[0], order=order).reset_index(drop = True)
     else:
-        order = list(df[predictor].unique())
+        if type(predictor) is str:
+            order = list(df[predictor].unique())
+        elif type(predictor) is list:
+            order = list(df[predictor[0]].unique())
     
-    if isinstance(predictor, str):
+    if type(predictor) is str: # one way
         N = df[predictor].value_counts()[0]
         groups = list(df[predictor].unique())
         ngroups = len(groups)
@@ -369,9 +339,9 @@ def auto_stats(df,
                 parametricity = parametricity_post_transfo
                 if verbose:
                     if parametricity_post_transfo:
-                        print('Successfull transformation')
+                        print('Useful log transformation')
                     else:
-                        print('Un-successfull transformation')
+                        print('Useless log transformation')
             else:
                 parametricity = parametricity_pre_transfo
         else:
@@ -392,19 +362,53 @@ def auto_stats(df,
         es_label = results['es_label']
         es_inter = results['es_interp']
 
-        
-        if not post_test is None:
+        sd = df[outcome].std()
+        min_val = df[outcome].min()
+        max_val = df[outcome].max()
+
+        ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5) # construct basic ax without annotation
+
+        if not post_test is None: # loop over pairwise combinations to plot annotations
             post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
-            ax = custom_annotated_ngroups(df, predictor, outcome, post_hoc, order, ax=ax)
+            tick_dict = {order[i]:i for i in range(len(order))}
+            df_annot = post_hoc.copy()
+            df_annot['star'] = None
+            df_annot['xstart'] = None
+            df_annot['xstop'] = None
+            df_annot['dx'] = None
+            df_annot['y'] = None
 
-        else:
-            ax = custom_annotated_two(df, predictor, outcome, order, pval, ax=ax)
+            for i, row in df_annot.iterrows():
+                df_annot.loc[i, 'star'] = pval_stars(row['p-corr'])
+                df_annot.loc[i, 'xstart'] = tick_dict[row['A']]
+                df_annot.loc[i, 'xstop'] = tick_dict[row['B']]
+                df_annot.loc[i,'y'] = max_val + i * (sd / 2 ) + sd / 3
+            df_annot.loc[:,'dx'] = df_annot['xstop'] - df_annot['xstart']
 
+            for i, row in df_annot.iterrows():
+                ax.arrow(x = row['xstart'], y = row['y'], dx = row['dx'], dy = 0, length_includes_head = True) # horizontal bar    
+                ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
+                ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
+                
+                ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = 10, horizontalalignment='center')
+            y_max_arrow = df_annot['y'].max()
+        else: # just read main test results to annotate
+            y = max_val + sd
+            star = pval_stars(results['p'])
+
+            ax.arrow(x = 0, y = y, dx = 1, dy = 0, length_includes_head = True) # horizontal bar    
+            ax.arrow(x = 0, y = y, dx = 0, dy = - sd / 10) # small left vertical bar
+            ax.arrow(x = 1, y = y, dx = 0, dy = - sd / 10) # small right vertical bar
+            
+            ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = 10, horizontalalignment='center')
+            y_max_arrow = y.copy()
         
+        ax.set_ylim(min_val - sd, y_max_arrow + sd)
+                
         if xtick_info:
             ax.set_xticks(range(ngroups))
 
-            cis = [f'[{round(confidence_interval(x)[0],3)};{round(confidence_interval(x)[1],3)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
+            cis = [f'[{round(confidence_interval(x)[0],2)};{round(confidence_interval(x)[1],2)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
 
             if parametricity:
                 estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
@@ -453,7 +457,7 @@ def auto_stats(df,
             sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = 'dark:black', ax=ax)
 
 
-    elif isinstance(predictor, list):
+    elif type(predictor) is list: # n way anova
         
         if design == 'within':
             test_type = 'rm_anova'
@@ -478,15 +482,63 @@ def auto_stats(df,
             ppred_1 = test.loc[f'{predictor[1]}', 'p-unc']
             
         if len(df[predictor[0]]) >= len(df[predictor[1]]):
-            x = predictor[0]
-            hue = predictor[1]
+            x_predictor = predictor[0]
+            hue_predictor = predictor[1]
+            ppred_hue = ppred_1.copy()
         else:
-            x = predictor[1]
-            hue = predictor[0]
+            x_predictor = predictor[1]
+            hue_predictor = predictor[0]
+            ppred_hue = ppred_0.copy()
+
         readable_p = readable_pval(pval)
-        sns.pointplot(data = df , x = x, y = outcome, hue = hue, ax=ax, order=order)
-        title = f'Effect of {predictor[0]} * {predictor[1]} on {outcome_clean_label} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
+        sns.pointplot(data = df , 
+                      x = x_predictor, 
+                      y = outcome, 
+                      hue = hue_predictor, 
+                      ax=ax, 
+                      order=order, 
+                      errorbar= 'se', 
+                      errwidth=1.5, 
+                      capsize=0.05,
+                      )
+        title = f'Interaction {predictor[0]} * {predictor[1]} on {outcome_clean_label} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
         ax.set_title(title)
+
+        if multicomp_correction:
+            multiple_comparison_correction = df[x_predictor].unique().size + df[hue_predictor].unique().size # n tests that will be done to get detailed stats intra dataset
+        else:
+            multiple_comparison_correction = 1
+
+        xticklabels = []
+        for i, level in enumerate(df[x_predictor].unique()):
+            df_level = df[df[x_predictor] == level]
+            parametricity = parametric(df_level, hue_predictor, outcome, subject)
+            tests = guidelines(df_level, hue_predictor, design, parametricity)
+            pre_test = tests['pre']
+            res = pg_compute_pre(df = df_level, predictor = hue_predictor, outcome = outcome, subject=subject, test=pre_test)
+            pval = res['p'] * multiple_comparison_correction
+            star = pval_stars(pval)
+            xticklabels.append(f'{level}\n{hue_predictor} : {star}')
+
+        ax.set_xticklabels(xticklabels)
+
+        legendlabels = []
+        for i, level in enumerate(df[hue_predictor].unique()):
+            df_level = df[df[hue_predictor] == level]
+            parametricity = parametric(df_level, x_predictor, outcome, subject)
+            tests = guidelines(df_level, x_predictor, design, parametricity)
+            pre_test = tests['pre']
+            res = pg_compute_pre(df = df_level, predictor = x_predictor, outcome = outcome, subject=subject, test=pre_test)
+            pval = res['p'] * multiple_comparison_correction
+            star = pval_stars(pval)
+            legendlabels.append(f'{level} - {x_predictor} : {star}')
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        ax.legend(handles, legendlabels)
+
+
+
     
     if not with_title:
         ax.set_title(None)
