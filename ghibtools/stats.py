@@ -382,13 +382,30 @@ def auto_stats(df,
                 df_annot.loc[i, 'star'] = pval_stars(row['p-corr'])
                 df_annot.loc[i, 'xstart'] = tick_dict[row['A']]
                 df_annot.loc[i, 'xstop'] = tick_dict[row['B']]
-                df_annot.loc[i,'y'] = max_val + i * (sd / 2 ) + sd / 3
+                df_annot.loc[i,'y'] = max_val + i * (sd / 1.8 ) + sd / 3
             df_annot.loc[:,'dx'] = df_annot['xstop'] - df_annot['xstart']
 
             for i, row in df_annot.iterrows():
-                ax.arrow(x = row['xstart'], y = row['y'], dx = row['dx'], dy = 0, length_includes_head = True) # horizontal bar    
-                ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
-                ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
+                # ax.arrow(x = row['xstart'], y = row['y'], dx = row['dx'], dy = 0, length_includes_head = True) # horizontal bar    
+                # ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
+                # ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
+
+                if row['p-corr'] < 0.05:
+                    ls = 'solid'
+                else:
+                    ls = 'dotted'
+
+                x = [row['xstart'], row['xstart'] + row['dx']]
+                y = [row['y']] * len(x)
+                ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
+
+                x = [row['xstart'], row['xstart']]
+                y = [row['y'], row['y'] - sd / 15]
+                ax.plot(x,y , color = 'k') # small left vertical bar
+
+                x = [row['xstop'], row['xstop']]
+                y = [row['y'], row['y'] - sd / 15]
+                ax.plot(x,y , color = 'k') # small right vertical bar
                 
                 ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = 10, horizontalalignment='center')
             y_max_arrow = df_annot['y'].max()
@@ -396,9 +413,27 @@ def auto_stats(df,
             y = max_val + sd
             star = pval_stars(results['p'])
 
-            ax.arrow(x = 0, y = y, dx = 1, dy = 0, length_includes_head = True) # horizontal bar    
-            ax.arrow(x = 0, y = y, dx = 0, dy = - sd / 10) # small left vertical bar
-            ax.arrow(x = 1, y = y, dx = 0, dy = - sd / 10) # small right vertical bar
+            # ax.arrow(x = 0, y = y, dx = 1, dy = 0, length_includes_head = True) # horizontal bar    
+            # ax.arrow(x = 0, y = y, dx = 0, dy = - sd / 10) # small left vertical bar
+            # ax.arrow(x = 1, y = y, dx = 0, dy = - sd / 10) # small right vertical bar
+
+            if results['p'] < 0.05:
+                ls = 'solid'
+            else:
+                ls = 'dotted'
+
+            x = [0, 1]
+            y_plot = [y] * len(x)
+            ax.plot(x,y_plot , color = 'k', ls = ls) # horizontal bar  
+
+            x = [0, 0]
+            y_plot = [y, y - sd / 10]
+            ax.plot(x,y_plot , color = 'k') # small left vertical bar
+
+            x = [1, 1]
+            y_plot = [y,y- sd / 10]
+            ax.plot(x,y_plot , color = 'k') # small right vertical bar
+
             
             ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = 10, horizontalalignment='center')
             y_max_arrow = y.copy()
