@@ -276,7 +276,8 @@ def auto_stats(df,
                 strip = True,
                 lines = True,
                 title_info = 'short',
-                multicomp_correction = True
+                multicomp_correction = True,
+                fontsize = None
                 ):
     
     """
@@ -302,11 +303,20 @@ def auto_stats(df,
     - lines : Draw one line per subject (default = True)
     - title_info : could be 'short' or 'full' according to the verbosity of the title (default = 'short')
     - multicomp_correction : if two or more predictors, some detailed stats will be displayed and pvalue corrected if True (default = True)
+    - fontsize : set fontsizes of titles (fontsize * 1), ylabel (fontsize * 0.9), xlabel (fontsize * 0.9), xticklabels (fontsize * 0.75), legend (fontsize * 0.6), if not None. Default is None = default matplotlib params
 
     Output = 
     - ax : subplot
     
     """
+
+    title_fontsize = fontsize
+    ylabel_fontsize = int(fontsize * 0.9) if not fontsize is None else fontsize
+    xlabel_fontsize = ylabel_fontsize
+    xticklabels_fontsize = int(fontsize * 0.75) if not fontsize is None else fontsize
+    legend_fontsize = int(fontsize * 0.6) if not fontsize is None else fontsize
+    fontsize_stars = 10 # fontsize of pvalue stars
+
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -324,7 +334,7 @@ def auto_stats(df,
             order = list(df[predictor].unique())
         elif type(predictor) is list:
             order = list(df[predictor[0]].unique())
-    
+
     if type(predictor) is str: # one way
         N = df[predictor].value_counts()[0]
         groups = list(df[predictor].unique())
@@ -407,7 +417,7 @@ def auto_stats(df,
                 y = [row['y'], row['y'] - sd / 15]
                 ax.plot(x,y , color = 'k') # small right vertical bar
                 
-                ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = 10, horizontalalignment='center')
+                ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = fontsize_stars , horizontalalignment='center')
             y_max_arrow = df_annot['y'].max()
         else: # just read main test results to annotate
             y = max_val + sd
@@ -435,7 +445,7 @@ def auto_stats(df,
             ax.plot(x,y_plot , color = 'k') # small right vertical bar
 
             
-            ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = 10, horizontalalignment='center')
+            ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = fontsize_stars, horizontalalignment='center')
             y_max_arrow = y.copy()
         
         ax.set_ylim(min_val - sd, y_max_arrow + sd)
@@ -457,33 +467,33 @@ def auto_stats(df,
                     ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
                     ticks_estimators.append(ticks_estimator_cond)
 
-            ax.set_xticklabels(ticks_estimators)
+            ax.set_xticklabels(ticks_estimators, fontsize = xticklabels_fontsize)
 
             
         if title_info == 'full':
             if design == 'between':
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
         elif title_info == 'short':
             if design == 'between':
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects \n {pre_test} : p{readable_p}')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})')
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
 
         if strip is True:
             sns.stripplot(x=predictor, y=outcome, data=df, order=order , color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
@@ -537,7 +547,7 @@ def auto_stats(df,
                       capsize=0.05,
                       )
         title = f'Interaction {predictor[0]} * {predictor[1]} on {outcome_clean_label} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
-        ax.set_title(title)
+        ax.set_title(title, fontsize = title_fontsize)
 
         if multicomp_correction:
             multiple_comparison_correction = df[x_predictor].unique().size + df[hue_predictor].unique().size # n tests that will be done to get detailed stats intra dataset
@@ -555,7 +565,7 @@ def auto_stats(df,
             star = pval_stars(pval)
             xticklabels.append(f'{level}\n{hue_predictor} : {star}')
 
-        ax.set_xticklabels(xticklabels)
+        ax.set_xticklabels(xticklabels, fontsize = xticklabels_fontsize)
 
         legendlabels = []
         for i, level in enumerate(df[hue_predictor].unique()):
@@ -570,18 +580,18 @@ def auto_stats(df,
 
         handles, labels = ax.get_legend_handles_labels()
 
-        ax.legend(handles, legendlabels)
+        ax.legend(handles, legendlabels, fontsize = legend_fontsize)
 
 
-
+    ax.set_xlabel(ax.get_xlabel(), fontsize = xlabel_fontsize)
     
     if not with_title:
         ax.set_title(None)
 
     if outcome_unit is not None:
-        ax.set_ylabel(f'{outcome_clean_label} [{outcome_unit}]')
+        ax.set_ylabel(f'{outcome_clean_label} [{outcome_unit}]', fontsize = ylabel_fontsize)
     else:
-        ax.set_ylabel(outcome_clean_label)
+        ax.set_ylabel(outcome_clean_label, fontsize = ylabel_fontsize)
 
     if not return_pval:
         return ax
@@ -744,11 +754,12 @@ def lmm(df, predictor, outcome, subject, order=None):
 
 
 def confidence_interval(x, confidence = 0.95, verbose = False):
+    N = x.size
     m = x.mean() 
     s = x.std() 
-    dof = x.size-1 
+    dof = N-1 
     t_crit = np.abs(stats.t.ppf((1-confidence)/2,dof))
-    ci = (m-s*t_crit/np.sqrt(len(x)), m+s*t_crit/np.sqrt(len(x))) 
+    ci = (m-s*t_crit/np.sqrt(N), m+s*t_crit/np.sqrt(N)) 
     if verbose:
         print(f'm : {round(m, 3)} , std : {round(s,3)} , ci : [{round(ci[0],3)};{round(ci[1],3)}]')
     return ci
