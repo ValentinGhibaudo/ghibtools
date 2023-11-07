@@ -335,11 +335,14 @@ def auto_stats(df,
         elif type(predictor) is list:
             order = list(df[predictor[0]].unique())
 
+    # print(df)
+
     if type(predictor) is str: # one way
         N = df[predictor].value_counts()[0]
         groups = list(df[predictor].unique())
         ngroups = len(groups)
         
+        # print(df, predictor, outcome, subject)
         parametricity_pre_transfo = parametric(df, predictor, outcome, subject)
         
         if transform:
