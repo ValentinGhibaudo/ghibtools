@@ -502,7 +502,8 @@ def auto_stats(df,
             sns.stripplot(x=predictor, y=outcome, data=df, order=order , color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
 
         if lines is True and design == 'within':
-            sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = 'dark:black', ax=ax)
+            palette = ['k'] * n_subjects
+            sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = palette, ax=ax)
 
 
     elif type(predictor) is list: # n way anova
