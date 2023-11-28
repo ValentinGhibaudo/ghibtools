@@ -786,3 +786,86 @@ def stats_quantitative(df, xlabel, ylabel, ax=None):
     ax.set_ylabel(ylabel)
 #
     return ax
+
+def get_descriptive_stats(df, predictor, outcome):
+    groups = df[predictor].unique()
+    descriptive_stats = pd.DataFrame(columns = groups, index = ['N','mean','sd','sem','median','mad','CI95'])
+    for group in groups:
+        df_group = df[df[predictor] == group]
+        x = df_group[outcome].values
+        descriptive_stats.loc['N',group] = x.size
+        descriptive_stats.loc['mean',group] = np.mean(x)
+        descriptive_stats.loc['sd',group] = np.std(x)
+        descriptive_stats.loc['sem',group] = np.std(x) / np.sqrt(x.size)
+        med, mad = med_mad(x)
+        descriptive_stats.loc['median',group] = med
+        descriptive_stats.loc['mad',group] = mad
+        descriptive_stats.loc['CI95',group] = list(pd.Series(confidence_interval(x)).round(3))
+    return descriptive_stats.T
+
+def auto_stats_summary(df, predictor, outcome, design, subject=None):
+    
+    is_parametric = parametric(df = df, predictor = predictor, outcome = outcome, subject = subject)
+    tests = guidelines(df = df, predictor = predictor, design = design, parametricity = is_parametric)
+    test = tests['pre']
+    
+    
+    pval_labels = {'t-test_ind':'p-val','t-test_paired':'p-val','anova':'p-unc','rm_anova':'p-unc','Mann-Whitney':'p-val','Wilcoxon':'p-val', 'Kruskal':'p-unc', 'friedman':'p-unc'}
+    esize_labels = {'t-test_ind':'cohen-d','t-test_paired':'cohen-d','anova':'np2','rm_anova':'np2','Mann-Whitney':'CLES','Wilcoxon':'CLES', 'Kruskal':None, 'friedman':None}
+    
+    if test == 't-test_ind':
+        groups = list(set(df[predictor]))
+        pre = df[df[predictor] == groups[0]][outcome]
+        post = df[df[predictor] == groups[1]][outcome]
+        inferential_stats = pg.ttest(pre, post, paired=False)
+        
+    elif test == 't-test_paired':
+        groups = list(set(df[predictor]))
+        pre = df[df[predictor] == groups[0]][outcome]
+        post = df[df[predictor] == groups[1]][outcome]
+        inferential_stats = pg.ttest(pre, post, paired=True)
+        
+    elif test == 'anova':
+        inferential_stats = pg.anova(dv=outcome, between=predictor, data=df, detailed=False, effsize = 'np2')
+    
+    elif test == 'rm_anova':
+        inferential_stats = pg.rm_anova(dv=outcome, within=predictor, data=df, detailed=False, effsize = 'np2', subject = subject)
+        
+    elif test == 'Mann-Whitney':
+        groups = list(set(df[predictor]))
+        x = df[df[predictor] == groups[0]][outcome]
+        y = df[df[predictor] == groups[1]][outcome]
+        inferential_stats = pg.mwu(x, y)
+        
+    elif test == 'Wilcoxon':
+        groups = list(set(df[predictor]))
+        x = df[df[predictor] == groups[0]][outcome]
+        y = df[df[predictor] == groups[1]][outcome]
+        inferential_stats = pg.wilcoxon(x, y)
+        
+    elif test == 'Kruskal':
+        inferential_stats = pg.kruskal(data=df, dv=outcome, between=predictor)
+        
+    elif test == 'friedman':
+        inferential_stats = pg.friedman(data=df, dv=outcome, within=predictor, subject=subject)
+    
+    es_label = esize_labels[test]
+    if es_label is None:
+        es = None
+    else:
+        es = inferential_stats[es_label].values[0]
+        
+    es_interp = es_interpretation(es_label, es)
+    # inferential_stats[f'ES : {es_label}'] = es
+    inferential_stats['ES interpretation'] = es_interp
+    inferential_stats = inferential_stats.rename(index = {inferential_stats.index[0]:test})
+    
+    descriptive_stats = get_descriptive_stats(df = df, predictor = predictor, outcome = outcome)
+    
+    return {'descriptive_stats':descriptive_stats, 'inferential_stats':inferential_stats}
+
+def save_auto_stats_summary(stats_dict, path):
+    writer = pd.ExcelWriter(path, engine = 'openpyxl')
+    for k,v in stats_dict.items():
+        v.to_excel(writer, sheet_name = k)
+    writer.close()
