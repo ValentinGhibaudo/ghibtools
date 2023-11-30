@@ -546,7 +546,7 @@ def auto_stats(df,
                       hue = hue_predictor, 
                       ax=ax, 
                       order=order, 
-                      errorbar= 'se', 
+                      errorbar= 'ci',
                       errwidth=1.5, 
                       capsize=0.05,
                       )
