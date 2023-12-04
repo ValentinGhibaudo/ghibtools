@@ -32,14 +32,14 @@ def homoscedasticity(df, predictor, outcome):
     homoscedasticity = pg.homoscedasticity(data = df, dv = outcome, group = predictor)['equal_var'].values[0]
     return homoscedasticity
 
-def parametric(df, predictor, outcome, subject = None):
+def parametric(df, predictor, outcome, design, subject = None):
     df = df.reset_index(drop=True)
     n_groups = df[predictor].unique().size
     normal = normality(df, predictor, outcome)
 
-    if n_groups < 3: # in case of potential ttest
+    if design == 'between': 
         equal_var = homoscedasticity(df, predictor, outcome)
-    else: # in case of potential anova
+    else: 
         equal_var = sphericity(df, predictor, outcome, subject)
     
     if normal and equal_var:
@@ -343,12 +343,12 @@ def auto_stats(df,
         ngroups = len(groups)
         
         # print(df, predictor, outcome, subject)
-        parametricity_pre_transfo = parametric(df, predictor, outcome, subject)
+        parametricity_pre_transfo = parametric(df, predictor, outcome, design, subject)
         
         if transform:
             if not parametricity_pre_transfo:
                 df = transform_data(df, outcome)
-                parametricity_post_transfo = parametric(df, predictor, outcome, subject)
+                parametricity_post_transfo = parametric(df, predictor, outcome, design,  subject)
                 parametricity = parametricity_post_transfo
                 if verbose:
                     if parametricity_post_transfo:
@@ -546,7 +546,7 @@ def auto_stats(df,
                       hue = hue_predictor, 
                       ax=ax, 
                       order=order, 
-                      errorbar= 'ci',
+                      errorbar= 'sd',
                       errwidth=1.5, 
                       capsize=0.05,
                       )
@@ -561,7 +561,7 @@ def auto_stats(df,
         xticklabels = []
         for i, level in enumerate(df[x_predictor].unique()):
             df_level = df[df[x_predictor] == level]
-            parametricity = parametric(df_level, hue_predictor, outcome, subject)
+            parametricity = parametric(df_level, hue_predictor, outcome, design, subject)
             tests = guidelines(df_level, hue_predictor, design, parametricity)
             pre_test = tests['pre']
             res = pg_compute_pre(df = df_level, predictor = hue_predictor, outcome = outcome, subject=subject, test=pre_test)
@@ -574,7 +574,7 @@ def auto_stats(df,
         legendlabels = []
         for i, level in enumerate(df[hue_predictor].unique()):
             df_level = df[df[hue_predictor] == level]
-            parametricity = parametric(df_level, x_predictor, outcome, subject)
+            parametricity = parametric(df_level, x_predictor, outcome, design, subject)
             tests = guidelines(df_level, x_predictor, design, parametricity)
             pre_test = tests['pre']
             res = pg_compute_pre(df = df_level, predictor = x_predictor, outcome = outcome, subject=subject, test=pre_test)
@@ -805,7 +805,7 @@ def get_descriptive_stats(df, predictor, outcome):
 
 def auto_stats_summary(df, predictor, outcome, design, subject=None):
     
-    is_parametric = parametric(df = df, predictor = predictor, outcome = outcome, subject = subject)
+    is_parametric = parametric(df = df, predictor = predictor, outcome = outcome,  design=design, subject = subject)
     tests = guidelines(df = df, predictor = predictor, design = design, parametricity = is_parametric)
     test = tests['pre']
     
