@@ -15,7 +15,6 @@ install_requires = [
                     'scikit-learn',
                     'neurokit2',
                     'seaborn',
-                    'statsmodels',
                     'pingouin',
                     ]
 
