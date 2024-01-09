@@ -476,9 +476,9 @@ def auto_stats(df,
         if title_info == 'full':
             if design == 'between':
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group * {ngroups} groups \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
@@ -488,9 +488,9 @@ def auto_stats(df,
         elif title_info == 'short':
             if design == 'between':
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {N} values/group \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
@@ -769,7 +769,7 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     return ci
 
 
-def stats_quantitative(df, xlabel, ylabel, ax=None):
+def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman'):
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -779,9 +779,9 @@ def stats_quantitative(df, xlabel, ylabel, ax=None):
     res = stats.linregress(x, y)
     ax.plot(x, res.intercept + res.slope*x, 'r', label='fitted line')
     ax.scatter(x = x, y=y, alpha = 0.8)
-    r = df.corr(method = 'spearman', numeric_only = True).loc[xlabel,ylabel]
+    r = df.corr(method = corr_method, numeric_only = True).loc[xlabel,ylabel]
     stars = pval_stars(res.pvalue)
-    ax.set_title(f'Correlation : {round(r, 3)}, R² : {round(res.rvalue **2, 3)}, pval : {stars}')
+    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, R² : {round(res.rvalue **2, 3)}, pval : {stars}')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 #
@@ -869,3 +869,51 @@ def save_auto_stats_summary(stats_dict, path):
     for k,v in stats_dict.items():
         v.to_excel(writer, sheet_name = k)
     writer.close()
+
+def stats_quali_quali(data, predictor, outcome, show = True, save = None):
+    counts = data[predictor].value_counts(ascending = True)
+    
+    expected, observed, stats = pg.chi2_independence(data, x=predictor, y=outcome)
+    observed = pd.crosstab(index =data[predictor] , columns = data[outcome])
+    p = stats['pval'].mean()
+
+    if show:
+        fig, axs = plt.subplots(ncols = 2, figsize = (12,4), sharey = True)
+        suptitle = f'Effect of {predictor} on {outcome} : p = {round(p, 5)}'
+        fig.suptitle(suptitle, fontsize = 15, y = 1.05)
+        fig.subplots_adjust(wspace = 0)
+        
+        ax = axs[0]
+        observed.round(2).plot.bar(ax=ax, edgecolor = 'k')
+        ax.set_title(f'Observed')
+        xticklabels = []
+        for level in observed.index:
+            N = int(observed.sum(axis = 1).loc[level])
+            xticklabel = f'{level}\nN={N}'
+            xticklabels.append(xticklabel)
+        ax.set_xticklabels(xticklabels, rotation = 0)
+        ax.set_xlabel(f'{predictor}\nN={data[predictor].notna().sum()}')
+    
+        legendlabels = []
+        for level in observed.columns:
+            N = int(observed.sum(axis = 0).loc[level])
+            legendlabel = f'{level}\nN={N}'
+            legendlabels.append(legendlabel)
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, legendlabels, title = outcome)
+    
+        
+        ax = axs[1]
+        expected.round(2).plot.bar(ax=ax, edgecolor = 'k', alpha = 0.6)
+        ax.set_title('Expected')
+        
+        for ax, df in zip(axs, [observed, expected]):
+            for bar in ax.containers:
+                ax.bar_label(bar)
+
+        if not save is None:
+            fig.savefig(save, dpi = 500, bbox_inches = 'tight')
+    
+        plt.show()
+
+    return p
