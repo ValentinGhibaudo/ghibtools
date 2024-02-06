@@ -776,15 +776,30 @@ def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman'):
     x = df[xlabel]
     y = df[ylabel]
 
-    res = stats.linregress(x, y)
-    ax.plot(x, res.intercept + res.slope*x, 'r', label='fitted line')
+    if corr_method == 'pearson':
+        res_corr = stats.pearsonr(x, y)
+        r = res_corr.statistic
+    elif corr_method == 'spearman':
+        res_corr = stats.spearmanr(x, y)
+        r = res_corr.correlation
+    pval_corr = res_corr.pvalue
+    stars_corr = pval_stars(pval_corr)
+
+    res_reg = stats.linregress(x, y)
+    intercept = res_reg.intercept
+    slope = res_reg.slope
+    rsquare = res_reg.rvalue **2
+    pval_reg = res_reg.pvalue
+    stars_reg = pval_stars(pval_reg)
+    
+    ax.plot(x, intercept + slope*x, 'r', label=f'f(x) = {round(slope, 2)}x + {round(intercept, 2)}')
     ax.scatter(x = x, y=y, alpha = 0.8)
-    r = df.corr(method = corr_method, numeric_only = True).loc[xlabel,ylabel]
-    stars = pval_stars(res.pvalue)
-    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, R² : {round(res.rvalue **2, 3)}, pval : {stars}')
+
+    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nR² : {round(rsquare, 3)}, p : {stars_reg}')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-#
+    # ax.legend()
+
     return ax
 
 def get_descriptive_stats(df, predictor, outcome):
