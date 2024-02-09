@@ -277,7 +277,8 @@ def auto_stats(df,
                 lines = True,
                 title_info = 'short',
                 multicomp_correction = True,
-                fontsize = None
+                fontsize = None,
+                force_post_hoc = True
                 ):
     
     """
@@ -304,7 +305,7 @@ def auto_stats(df,
     - title_info : could be 'short' or 'full' according to the verbosity of the title (default = 'short')
     - multicomp_correction : if two or more predictors, some detailed stats will be displayed and pvalue corrected if True (default = True)
     - fontsize : set fontsizes of titles (fontsize * 1), ylabel (fontsize * 0.9), xlabel (fontsize * 0.9), xticklabels (fontsize * 0.75), legend (fontsize * 0.6), if not None. Default is None = default matplotlib params
-
+    - force_post_hoc : Force the display of post-hoc stats even if global test not significant
     Output = 
     - ax : subplot
     
@@ -381,77 +382,78 @@ def auto_stats(df,
 
         ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5) # construct basic ax without annotation
 
-        if not post_test is None: # loop over pairwise combinations to plot annotations
-            post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
-            tick_dict = {order[i]:i for i in range(len(order))}
-            df_annot = post_hoc.copy()
-            df_annot['star'] = None
-            df_annot['xstart'] = None
-            df_annot['xstop'] = None
-            df_annot['dx'] = None
-            df_annot['y'] = None
+        if pval < 0.05 or force_post_hoc:
+            if not post_test is None: # loop over pairwise combinations to plot annotations
+                post_hoc = pg_compute_post_hoc(df, predictor, outcome, post_test, subject)
+                tick_dict = {order[i]:i for i in range(len(order))}
+                df_annot = post_hoc.copy()
+                df_annot['star'] = None
+                df_annot['xstart'] = None
+                df_annot['xstop'] = None
+                df_annot['dx'] = None
+                df_annot['y'] = None
 
-            for i, row in df_annot.iterrows():
-                df_annot.loc[i, 'star'] = pval_stars(row['p-corr'])
-                df_annot.loc[i, 'xstart'] = tick_dict[row['A']]
-                df_annot.loc[i, 'xstop'] = tick_dict[row['B']]
-                df_annot.loc[i,'y'] = max_val + i * (sd / 1.8 ) + sd / 3
-            df_annot.loc[:,'dx'] = df_annot['xstop'] - df_annot['xstart']
+                for i, row in df_annot.iterrows():
+                    df_annot.loc[i, 'star'] = pval_stars(row['p-corr'])
+                    df_annot.loc[i, 'xstart'] = tick_dict[row['A']]
+                    df_annot.loc[i, 'xstop'] = tick_dict[row['B']]
+                    df_annot.loc[i,'y'] = max_val + i * (sd / 1.8 ) + sd / 3
+                df_annot.loc[:,'dx'] = df_annot['xstop'] - df_annot['xstart']
 
-            for i, row in df_annot.iterrows():
-                # ax.arrow(x = row['xstart'], y = row['y'], dx = row['dx'], dy = 0, length_includes_head = True) # horizontal bar    
-                # ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
-                # ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
+                for i, row in df_annot.iterrows():
+                    # ax.arrow(x = row['xstart'], y = row['y'], dx = row['dx'], dy = 0, length_includes_head = True) # horizontal bar    
+                    # ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
+                    # ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
 
-                if row['p-corr'] < 0.05:
+                    if row['p-corr'] < 0.05:
+                        ls = 'solid'
+                    else:
+                        ls = 'dotted'
+
+                    x = [row['xstart'], row['xstart'] + row['dx']]
+                    y = [row['y']] * len(x)
+                    ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
+
+                    x = [row['xstart'], row['xstart']]
+                    y = [row['y'], row['y'] - sd / 15]
+                    ax.plot(x,y , color = 'k') # small left vertical bar
+
+                    x = [row['xstop'], row['xstop']]
+                    y = [row['y'], row['y'] - sd / 15]
+                    ax.plot(x,y , color = 'k') # small right vertical bar
+                    
+                    ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = fontsize_stars , horizontalalignment='center')
+                y_max_arrow = df_annot['y'].max()
+            else: # just read main test results to annotate
+                y = max_val + sd
+                star = pval_stars(results['p'])
+
+                # ax.arrow(x = 0, y = y, dx = 1, dy = 0, length_includes_head = True) # horizontal bar    
+                # ax.arrow(x = 0, y = y, dx = 0, dy = - sd / 10) # small left vertical bar
+                # ax.arrow(x = 1, y = y, dx = 0, dy = - sd / 10) # small right vertical bar
+
+                if results['p'] < 0.05:
                     ls = 'solid'
                 else:
                     ls = 'dotted'
 
-                x = [row['xstart'], row['xstart'] + row['dx']]
-                y = [row['y']] * len(x)
-                ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
+                x = [0, 1]
+                y_plot = [y] * len(x)
+                ax.plot(x,y_plot , color = 'k', ls = ls) # horizontal bar  
 
-                x = [row['xstart'], row['xstart']]
-                y = [row['y'], row['y'] - sd / 15]
-                ax.plot(x,y , color = 'k') # small left vertical bar
+                x = [0, 0]
+                y_plot = [y, y - sd / 10]
+                ax.plot(x,y_plot , color = 'k') # small left vertical bar
 
-                x = [row['xstop'], row['xstop']]
-                y = [row['y'], row['y'] - sd / 15]
-                ax.plot(x,y , color = 'k') # small right vertical bar
+                x = [1, 1]
+                y_plot = [y,y- sd / 10]
+                ax.plot(x,y_plot , color = 'k') # small right vertical bar
+
                 
-                ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = fontsize_stars , horizontalalignment='center')
-            y_max_arrow = df_annot['y'].max()
-        else: # just read main test results to annotate
-            y = max_val + sd
-            star = pval_stars(results['p'])
-
-            # ax.arrow(x = 0, y = y, dx = 1, dy = 0, length_includes_head = True) # horizontal bar    
-            # ax.arrow(x = 0, y = y, dx = 0, dy = - sd / 10) # small left vertical bar
-            # ax.arrow(x = 1, y = y, dx = 0, dy = - sd / 10) # small right vertical bar
-
-            if results['p'] < 0.05:
-                ls = 'solid'
-            else:
-                ls = 'dotted'
-
-            x = [0, 1]
-            y_plot = [y] * len(x)
-            ax.plot(x,y_plot , color = 'k', ls = ls) # horizontal bar  
-
-            x = [0, 0]
-            y_plot = [y, y - sd / 10]
-            ax.plot(x,y_plot , color = 'k') # small left vertical bar
-
-            x = [1, 1]
-            y_plot = [y,y- sd / 10]
-            ax.plot(x,y_plot , color = 'k') # small right vertical bar
-
+                ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = fontsize_stars, horizontalalignment='center')
+                y_max_arrow = y.copy()
             
-            ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = fontsize_stars, horizontalalignment='center')
-            y_max_arrow = y.copy()
-        
-        ax.set_ylim(min_val - sd, y_max_arrow + sd)
+            ax.set_ylim(min_val - sd, y_max_arrow + sd)
                 
         if xtick_info:
             ax.set_xticks(range(ngroups))
