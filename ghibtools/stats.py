@@ -762,7 +762,7 @@ def lmm(df, predictor, outcome, subject, order=None):
 def confidence_interval(x, confidence = 0.95, verbose = False):
     N = x.size
     m = x.mean() 
-    s = x.std() 
+    s = x.std(ddof=1) 
     dof = N-1 
     t_crit = np.abs(stats.t.ppf((1-confidence)/2,dof))
     ci = (m-s*t_crit/np.sqrt(N), m+s*t_crit/np.sqrt(N)) 
@@ -812,12 +812,12 @@ def get_descriptive_stats(df, predictor, outcome):
         x = df_group[outcome].values
         descriptive_stats.loc['N',group] = x.size
         descriptive_stats.loc['mean',group] = np.mean(x)
-        descriptive_stats.loc['sd',group] = np.std(x)
-        descriptive_stats.loc['sem',group] = np.std(x) / np.sqrt(x.size)
+        descriptive_stats.loc['sd',group] = np.std(x, ddof=1)
+        descriptive_stats.loc['sem',group] = np.std(x, ddof=1) / np.sqrt(x.size)
         med, mad = med_mad(x)
         descriptive_stats.loc['median',group] = med
         descriptive_stats.loc['mad',group] = mad
-        descriptive_stats.loc['CI95',group] = list(pd.Series(confidence_interval(x)).round(3))
+        descriptive_stats.loc['CI95',group] = list(pd.Series(confidence_interval(x)).round(2))
     return descriptive_stats.T
 
 def auto_stats_summary(df, predictor, outcome, design, subject=None):
