@@ -484,9 +484,9 @@ def auto_stats(df,
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} * {ngroups} groups (*{int(N/n_subjects)} trial/group) \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
         elif title_info == 'short':
             if design == 'between':
                 if es_label is None:
@@ -496,9 +496,9 @@ def auto_stats(df,
             elif design == 'within':
                 n_subjects = df[subject].unique().size
                 if es_label is None:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} subjects \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n N = {n_subjects} \n {pre_test} : p{readable_p}', fontsize = title_fontsize)
                 else:
-                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} subjects \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
+                    ax.set_title(f'Effect of {predictor} on {outcome_clean_label} : {pval_stars(pval)} \n  N = {n_subjects} \n {pre_test} : p{readable_p}, {es_label} : {es} ({es_inter})', fontsize = title_fontsize)
 
         if strip is True:
             sns.stripplot(x=predictor, y=outcome, data=df, order=order , color = 'k', alpha = 0.5, size = 3, jitter = 0.05, ax=ax)
