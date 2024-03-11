@@ -15,3 +15,14 @@ def get_plot_letters(kind = 'upper'):
         alphabet = list(string.ascii_lowercase)
     return [f'{letter})' for letter in alphabet]
 
+def attribute_subplots(element_list, nrows, ncols):
+    assert nrows * ncols >= len(element_list), f'Not enough subplots planned ({nrows*ncols} subplots but {len(element_list)} elements)'
+    subplots_pos = {}
+    counter = 0
+    for r in range(nrows):
+        for c in range(ncols):
+            if counter == len(element_list):
+                break
+            subplots_pos[f'{element_list[counter]}'] = [r,c]
+            counter += 1
+    return subplots_pos  
