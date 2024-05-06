@@ -218,7 +218,7 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
         
     elif test == 'pairwise_ttests_ind_paramFalse':
         if n_subjects >= 15:
-            res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=True, padjust = 'holm')
+            res = pg.pairwise_tests(data = df, dv=outcome, between=predictor, parametric=False, padjust = 'holm')
         else:
             res = permutation(df = df, outcome=outcome, predictor=predictor, design = 'between')
 
@@ -467,7 +467,7 @@ def auto_stats(df,
             else:
                 ticks_estimators = []
                 for cond, ci in zip(order, cis): 
-                    med, mad = med_mad(df[df[predictor] == cond][outcome])
+                    med, mad = med_mad(df[df[predictor] == cond][outcome].dropna())
                     med, mad = round(med,2) , round(mad, 2)
                     ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
                     ticks_estimators.append(ticks_estimator_cond)
@@ -505,7 +505,7 @@ def auto_stats(df,
 
         if lines is True and design == 'within':
             palette = ['k'] * n_subjects
-            sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.2, legend = False, errorbar = None, palette = palette, ax=ax)
+            sns.lineplot(x=predictor, y=outcome, data=df, hue = subject, alpha = 0.1, legend = False, errorbar = None, palette = palette, ax=ax)
 
 
     elif type(predictor) is list: # n way anova
