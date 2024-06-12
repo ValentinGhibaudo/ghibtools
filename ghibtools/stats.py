@@ -771,7 +771,7 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     return ci
 
 
-def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman'):
+def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r'):
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -794,13 +794,12 @@ def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman'):
     pval_reg = res_reg.pvalue
     stars_reg = pval_stars(pval_reg)
     
-    ax.plot(x, intercept + slope*x, 'r', label=f'f(x) = {round(slope, 2)}x + {round(intercept, 2)}')
-    ax.scatter(x = x, y=y, alpha = 0.8)
+    ax.plot(x, intercept + slope*x, color = color_regline)
+    ax.scatter(x = x, y=y, color = color_scatter, label = legend_label, alpha = alpha_scatter)
 
-    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nR² : {round(rsquare, 3)}, p : {stars_reg}')
+    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    # ax.legend()
 
     return ax
 
