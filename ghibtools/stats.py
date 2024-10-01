@@ -267,7 +267,8 @@ def auto_stats(df,
                 design='within', 
                 transform=False, 
                 verbose=True, 
-                order = None, 
+                order = None,
+                palette = None,
                 with_title = True,
                 xtick_info = True,
                 return_pval = False,
@@ -278,7 +279,8 @@ def auto_stats(df,
                 title_info = 'short',
                 multicomp_correction = True,
                 fontsize = None,
-                force_post_hoc = True
+                force_post_hoc = True,
+                show_ns = True
                 ):
     
     """
@@ -295,6 +297,7 @@ def auto_stats(df,
     - transform : log transform data if True and if data are non-normally distributed & heteroscedastic , to try to do a parametric test after transformation (default = False)
     - verbose : print idea of successfull or unsuccessfull transformation of data, if transformed, acccording to non-parametric to parametric test feasable after transformation (default = True)
     - order : order of xlabels (= of groups) if the plot, default = None = default order
+    - palette : color palette (like a dict of colors for each box = for each level)
     - with_title : return ax with title if True(default = True)
     - xtick_info : return ax with descriptive statistics under xtick labels if True (default = True)
     - return_pval : return pval with ax if True (default = False)
@@ -306,6 +309,7 @@ def auto_stats(df,
     - multicomp_correction : if two or more predictors, some detailed stats will be displayed and pvalue corrected if True (default = True)
     - fontsize : set fontsizes of titles (fontsize * 1), ylabel (fontsize * 0.9), xlabel (fontsize * 0.9), xticklabels (fontsize * 0.75), legend (fontsize * 0.6), if not None. Default is None = default matplotlib params
     - force_post_hoc : Force the display of post-hoc stats even if global test not significant
+    - show_ns : Boolean to show or not the non-significant post-hoc markers. Default = True
     Output = 
     - ax : subplot
     
@@ -380,7 +384,7 @@ def auto_stats(df,
         min_val = df[outcome].min()
         max_val = df[outcome].max()
 
-        ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5) # construct basic ax without annotation
+        ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5, palette = palette) # construct basic ax without annotation
 
         if pval < 0.05 or force_post_hoc:
             if not post_test is None: # loop over pairwise combinations to plot annotations
@@ -410,19 +414,20 @@ def auto_stats(df,
                     else:
                         ls = 'dotted'
 
-                    x = [row['xstart'], row['xstart'] + row['dx']]
-                    y = [row['y']] * len(x)
-                    ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
+                    if row['p-corr'] < 0.05 or show_ns:
+                        x = [row['xstart'], row['xstart'] + row['dx']]
+                        y = [row['y']] * len(x)
+                        ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
 
-                    x = [row['xstart'], row['xstart']]
-                    y = [row['y'], row['y'] - sd / 15]
-                    ax.plot(x,y , color = 'k') # small left vertical bar
+                        x = [row['xstart'], row['xstart']]
+                        y = [row['y'], row['y'] - sd / 15]
+                        ax.plot(x,y , color = 'k') # small left vertical bar
 
-                    x = [row['xstop'], row['xstop']]
-                    y = [row['y'], row['y'] - sd / 15]
-                    ax.plot(x,y , color = 'k') # small right vertical bar
-                    
-                    ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = fontsize_stars , horizontalalignment='center')
+                        x = [row['xstop'], row['xstop']]
+                        y = [row['y'], row['y'] - sd / 15]
+                        ax.plot(x,y , color = 'k') # small right vertical bar
+                        
+                        ax.text(x = (row['xstart'] + row['xstop']) / 2 , y = row['y'] + sd / 10, s = row['star'], fontsize = fontsize_stars , horizontalalignment='center')
                 y_max_arrow = df_annot['y'].max()
             else: # just read main test results to annotate
                 y = max_val + sd
@@ -451,7 +456,7 @@ def auto_stats(df,
 
                 
                 ax.text(x = 0.5 , y = y + sd / 10, s = star, fontsize = fontsize_stars, horizontalalignment='center')
-                y_max_arrow = y.copy()
+                y_max_arrow = y#.copy()
             
             ax.set_ylim(min_val - sd, y_max_arrow + sd)
                 
@@ -462,7 +467,7 @@ def auto_stats(df,
 
             if parametricity:
                 estimators = pd.concat([df.groupby(predictor).mean(numeric_only = True)[outcome].reset_index(), df.groupby(predictor).std(numeric_only = True)[outcome].reset_index()[outcome].rename('sd')], axis = 1).round(2).set_index(predictor)
-                ticks_estimators = [f"{cond} \n {estimators.loc[cond,outcome]} ({estimators.loc[cond,'sd']}) \n {ci} " for cond, ci in zip(order,cis)]
+                ticks_estimators = [f"{cond} \n {round(estimators.loc[cond,outcome], 2)} ({round(estimators.loc[cond,'sd'], 2)}) \n {ci} " for cond, ci in zip(order,cis)]
                 
             else:
                 ticks_estimators = []
@@ -771,7 +776,7 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     return ci
 
 
-def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r'):
+def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_ax_only = True):
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -797,11 +802,15 @@ def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', co
     ax.plot(x, intercept + slope*x, color = color_regline)
     ax.scatter(x = x, y=y, color = color_scatter, label = legend_label, alpha = alpha_scatter)
 
-    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
+    # ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
+    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {round(pval_corr, 3)} ({stars_corr})\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {round(pval_reg, 3)} ({stars_reg})')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-
-    return ax
+    if return_ax_only:
+        return ax
+    else:
+        dict_res = {'slope':slope , 'R':r, 'R²':rsquare}
+        return ax, dict_res
 
 def get_descriptive_stats(df, predictor, outcome):
     groups = df[predictor].unique()
