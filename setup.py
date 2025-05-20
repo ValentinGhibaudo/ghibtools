@@ -12,8 +12,6 @@ install_requires = [
                     'pandas',
                     'xarray',
                     'matplotlib',
-                    'scikit-learn',
-                    'neurokit2',
                     'seaborn',
                     'pingouin',
                     ]
