@@ -4,10 +4,9 @@ from scipy import signal
 from scipy import stats
 import pandas as pd
 import xarray as xr
-from .signals import init_da, iirfilt
+from .signals import iirfilt
 
 def Kullback_Leibler_Distance(a, b):
-    a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
     return np.sum(np.where(a != 0, a * np.log(a / b), 0))
 
@@ -244,7 +243,10 @@ def get_comodulogram(sig, srate, range_fp , range_fa, bandwidth_fp=4, bandwidth_
             target_freqs = (fa - bandwidth_fa/2, fa + bandwidth_fa/2)
             mi = raw_to_mi(sig, modulants_freqs, target_freqs, srate)
             if da_comodulogram is None:
-                da_comodulogram = init_da({'Modulated_freqs':modulated, 'Modulant_Freqs':modulants})
+                da_comodulogram = xr.DataArray(data = np.nan,
+                                               dims = ['Modulated_freqs','Modulant_Freqs'],
+                                               coords = {'Modulated_freqs':modulated, 'Modulant_Freqs':modulants}
+                                              )
             da_comodulogram.loc[fa, fp] = mi
     return da_comodulogram
 

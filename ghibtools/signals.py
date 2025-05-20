@@ -2,16 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fftpack
-import scipy.interpolate
 import xarray as xr
-import joblib
 import pandas as pd
-
-def notch(sig, fs):
-    import mne
-    sig_notched = mne.filter.notch_filter(sig, Fs=fs, freqs=np.arange(50,101,50),  verbose=False)
-    return sig_notched
-    
+ 
 def get_wsize(srate, lowest_freq , n_cycles=5):
     nperseg = ( n_cycles / lowest_freq) * srate
     return int(nperseg)
@@ -75,24 +68,6 @@ def coherence(sig1,sig2, srate, lowest_freq, n_cycles = 5, nfft_factor = 2):
     nfft = nperseg * nfft_factor
     f, Cxy = signal.coherence(sig1,sig2, fs=srate, nperseg = nperseg , nfft = nfft )
     return f, Cxy
-
-def init_da(coords, name = None, values = np.nan):
-    dims = list(coords.keys())
-    coords = coords
-
-    def size_of(element):
-        element = np.array(element)
-        size = element.size
-        return size
-
-    shape = tuple([size_of(element) for element in list(coords.values())])
-    data = np.full(shape, values)
-    da = xr.DataArray(data=data, dims=dims, coords=coords, name = name)
-    return da
-
-def parallelize(iterator, function, n_jobs):
-    result = joblib.Parallel(n_jobs = n_jobs, prefer = 'threads')(joblib.delayed(function)(i) for i in iterator)
-    return result
 
 def shuffle_sig_one_inversion(sig):
     half_size = sig.shape[0]//2
@@ -343,7 +318,10 @@ def get_itpc(da): # input = 3D Xarray : trials * freqs * time
             phase_angles = da.loc[:,f,t]
             mean_phase_angle_over_trials = np.abs(np.mean(np.exp(1j*phase_angles)))
             if da_itpc is None:
-                da_itpc = init_da({'freqs':da.coords['freqs'].values, 'time':da.coords['time'].values})
+                da_itpc = xr.DataArray(data = np.nan,
+                                       dims = ['freqs','time'],
+                                       coords = {'freqs':da.coords['freqs'].values, 'time':da.coords['time'].values}
+                                      )
             da_itpc.loc[f,t] = mean_phase_angle_over_trials
     return da_itpc # output = 2D Xarray : freqs * time
 
@@ -466,29 +444,4 @@ def morlet_power(sig, srate, f_start, f_stop, n_steps, n_cycles, amplitude_expon
     tf = signal.fftconvolve(sigs, family, mode = 'same', axes = 1)
     power = np.abs(tf) ** amplitude_exponent
     return freqs , power
-
-def sliding_mean(sig, nwin, mode = 'same', axis = -1):
-    """
-    Sliding mean
-    ------
-    Inputs =
-    - sig : nd array
-    - nwin : N samples in the sliding window
-    - mode : default = 'same' = size of the output (could be 'valid' or 'full', see doc scipy.signal.fftconvolve)
-    - axis : axis on which sliding mean is computed (useful only in case of >= 1 dim)
-    Output =
-    - smoothed_sig : signal smoothed
-    """
-    if sig.ndim == 1:
-        kernel = np.ones(nwin) / nwin
-        smoothed_sig = signal.fftconvolve(sig, kernel , mode = mode)
-        return smoothed_sig
-    else:
-        smoothed_sig = sig.copy()
-        shape = list(sig.shape)
-        shape[-1] = nwin
-        kernel = np.ones(shape) / nwin
-        smoothed_sig[:] = signal.fftconvolve(sig, kernel , mode = mode, axes = axis)
-        return smoothed_sig
-
 
