@@ -1,1 +1,1 @@
-Toolbox from Valentin Ghibaudo, Neuroscience PhD Student
+Toolbox from Valentin Ghibaudo, Neuroscience PostDoc Researcher
