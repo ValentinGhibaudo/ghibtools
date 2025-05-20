@@ -207,7 +207,7 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
     if not subject is None:
         n_subjects = df[subject].unique().size
     else:
-        n_subjects = df[predictor].value_counts()[0]
+        n_subjects = df[predictor].value_counts().iloc[0]
     
     if test == 'pairwise_tukey':
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
@@ -343,7 +343,7 @@ def auto_stats(df,
     # print(df)
 
     if type(predictor) is str: # one way
-        N = df[predictor].value_counts()[0]
+        N = df[predictor].value_counts().iloc[0]
         groups = list(df[predictor].unique())
         ngroups = len(groups)
         
@@ -384,7 +384,7 @@ def auto_stats(df,
         min_val = df[outcome].min()
         max_val = df[outcome].max()
 
-        ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5, palette = palette) # construct basic ax without annotation
+        ax = sns.boxplot(data = df, x = predictor, y = outcome, order = order, ax=ax, whis = 5, palette = palette, hue = predictor) # construct basic ax without annotation
 
         if pval < 0.05 or force_post_hoc:
             if not post_test is None: # loop over pairwise combinations to plot annotations
@@ -743,7 +743,7 @@ def lmm(df, predictor, outcome, subject, order=None):
 
     fig, ax = plt.subplots()
     if isinstance(predictor, str):
-        sns.boxplot(data=df, x = predictor, y = outcome, ax=ax )
+        sns.boxplot(data=df, x = predictor, y = outcome, hue = predictor, ax=ax)
     elif isinstance(predictor, list):
         sns.pointplot(data=df, x = predictor[0], y = outcome, hue = predictor[1],ax=ax)
     ax.set_title(formula)
