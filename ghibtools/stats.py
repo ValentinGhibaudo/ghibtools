@@ -7,6 +7,13 @@ from scipy import stats
 import itertools
 import statsmodels.formula.api as smf
 
+def iqr_interval(a, round_=2, format = 'str'):
+    q25, q75 = np.nanquantile(a, 0.25), np.nanquantile(a, 0.75)
+    if format == 'str':
+        return f'[{q25.round(round_)}, {q75.round(round_)}]' # "If your audience is international, the comma format may be more intuitive,  it's best to include a space inside the brackets for readability"
+    elif format == 'tuple':
+        return (q25, q75)
+    
 def med_mad(data, constant = 1.4826):
     median = np.median(data)
     mad = np.median(np.abs(data - median)) * constant
@@ -81,8 +88,8 @@ def guidelines(df, predictor, design, parametricity):
 
 def pg_compute_pre(df, predictor, outcome, test, subject=None, show = False):
     
-    pval_labels = {'t-test_ind':'p-val','t-test_paired':'p-val','anova':'p-unc','rm_anova':'p-unc','Mann-Whitney':'p-val','Wilcoxon':'p-val', 'Kruskal':'p-unc', 'friedman':'p-unc'}
-    esize_labels = {'t-test_ind':'cohen-d','t-test_paired':'cohen-d','anova':'np2','rm_anova':'np2','Mann-Whitney':'CLES','Wilcoxon':'CLES', 'Kruskal':None, 'friedman':None}
+    pval_labels = {'t-test_ind':'p_val','t-test_paired':'p_val','anova':'p_unc','rm_anova':'p_unc','Mann-Whitney':'p_val','Wilcoxon':'p_val', 'Kruskal':'p_unc', 'friedman':'p_val'}
+    esize_labels = {'t-test_ind':'cohen_d','t-test_paired':'cohen_d','anova':'np2','rm_anova':'np2','Mann-Whitney':'CLES','Wilcoxon':'CLES', 'Kruskal':None, 'friedman':None}
     
     if test == 't-test_ind':
         groups = list(set(df[predictor]))
@@ -134,7 +141,7 @@ def pg_compute_pre(df, predictor, outcome, test, subject=None, show = False):
 
 def es_interpretation(es_label , es_value):
 
-    if es_label == 'cohen-d' or es_label == 'CLES':
+    if es_label == 'cohen_d' or es_label == 'CLES':
         if es_value < 0.2:
             interpretation = 'VS'
         elif es_value >= 0.2 and es_value < 0.5:
@@ -187,19 +194,19 @@ def homemade_post_hoc(df, predictor, outcome, design = 'within', subject = None,
 
         if design == 'within':
             if parametric:
-                p = pg.ttest(x, y, paired= True)['p-val']
+                p = pg.ttest(x, y, paired= True)['p_val']
             else:
-                p = pg.wilcoxon(x, y)['p-val']
+                p = pg.wilcoxon(x, y)['p_val']
         elif design == 'between':
             if parametric:
-                p = pg.ttest(x, y, paired= False)['p-val']
+                p = pg.ttest(x, y, paired= False)['p_val']
             else:
-                p = pg.mwu(x, y)['p-val']
+                p = pg.mwu(x, y)['p_val']
         pvals.append(p.values[0])
         
-    pairs['p-unc'] = pvals
+    pairs['p_unc'] = pvals
     _, pvals_corr = pg.multicomp(pvals)
-    pairs['p-corr'] = pvals_corr
+    pairs['p_corr'] = pvals_corr
     return pairs
         
 def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
@@ -211,7 +218,7 @@ def pg_compute_post_hoc(df, predictor, outcome, test, subject=None):
     
     if test == 'pairwise_tukey':
         res = pg.pairwise_tukey(data = df, dv=outcome, between=predictor)
-        res['p-corr'] = pg.multicomp(res['p-tukey'])[1]
+        res['p_corr'] = pg.multicomp(res['p_tukey'])[1]
 
     elif test == 'pairwise_ttests_paired_paramTrue':
         res = pg.pairwise_tests(data = df, dv=outcome, within=predictor, subject=subject, parametric=True, padjust = 'holm')
@@ -235,10 +242,8 @@ def pval_stars(pval):
         stars = '*'
     elif pval < 0.01 and pval >= 0.001:
         stars = '**'
-    elif pval < 0.001 and pval >= 0.0001:
+    elif pval < 0.001:
         stars = '***'
-    elif pval < 0.0001:
-        stars = '****'
     else:
         stars = 'ns'
     return stars
@@ -398,7 +403,7 @@ def auto_stats(df,
                 df_annot['y'] = None
 
                 for i, row in df_annot.iterrows():
-                    df_annot.loc[i, 'star'] = pval_stars(row['p-corr'])
+                    df_annot.loc[i, 'star'] = pval_stars(row['p_corr'])
                     df_annot.loc[i, 'xstart'] = tick_dict[row['A']]
                     df_annot.loc[i, 'xstop'] = tick_dict[row['B']]
                     df_annot.loc[i,'y'] = max_val + i * (sd / 1.8 ) + sd / 3
@@ -409,12 +414,12 @@ def auto_stats(df,
                     # ax.arrow(x = row['xstart'], y = row['y'], dx = 0, dy =  - sd / 10) # small left vertical bar
                     # ax.arrow(x = row['xstop'], y = row['y'], dx = 0, dy = - sd / 10) # small right vertical bar
 
-                    if row['p-corr'] < 0.05:
+                    if row['p_corr'] < 0.05:
                         ls = 'solid'
                     else:
                         ls = 'dotted'
 
-                    if row['p-corr'] < 0.05 or show_ns:
+                    if row['p_corr'] < 0.05 or show_ns:
                         x = [row['xstart'], row['xstart'] + row['dx']]
                         y = [row['y']] * len(x)
                         ax.plot(x,y , color = 'k', ls = ls) # horizontal bar  
@@ -461,7 +466,7 @@ def auto_stats(df,
             ax.set_ylim(min_val - sd, y_max_arrow + sd)
                 
         if xtick_info:
-            ax.set_xticks(range(ngroups))
+            # ax.set_xticks(range(ngroups))
 
             cis = [f'[{round(confidence_interval(x)[0],2)};{round(confidence_interval(x)[1],2)}]' for x in [df[df[predictor] == group][outcome] for group in groups]]
 
@@ -477,7 +482,8 @@ def auto_stats(df,
                     ticks_estimator_cond = f"{cond} \n {med} ({mad}) \n {ci} "
                     ticks_estimators.append(ticks_estimator_cond)
 
-            ax.set_xticklabels(ticks_estimators, fontsize = xticklabels_fontsize)
+            # ax.set_xticklabels(ticks_estimators, fontsize = xticklabels_fontsize)
+            ax.set_xticks(ticks = range(ngroups), labels = ticks_estimators, fontsize = xticklabels_fontsize)
 
             
         if title_info == 'full':
@@ -518,24 +524,24 @@ def auto_stats(df,
         if design == 'within':
             test_type = 'rm_anova'
             test = pg.rm_anova(data=df, dv=outcome, within = predictor, subject = subject, effsize = 'np2').set_index('Source').round(3)
-            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-GG-corr']
+            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p_GG-corr']
             pstars = pval_stars(pval)
             es_label = test.columns[-2]
             es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
             es_inter = es_interpretation(es_label=es_label, es_value=es)
-            ppred_0 = test.loc[f'{predictor[0]}', 'p-GG-corr']
-            ppred_1 = test.loc[f'{predictor[1]}', 'p-GG-corr']
+            ppred_0 = test.loc[f'{predictor[0]}', 'p_GG-corr']
+            ppred_1 = test.loc[f'{predictor[1]}', 'p_GG-corr']
             
         elif design == 'between':
             test_type = 'anova'
             test = pg.anova(data=df, dv=outcome, between = predictor).set_index('Source').round(3)
-            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p-unc']
+            pval = test.loc[f'{predictor[0]} * {predictor[1]}','p_unc']
             pstars = pval_stars(pval)
             es_label = test.columns[-1]
             es = test.loc[f'{predictor[0]} * {predictor[1]}','np2']
             es_inter = es_interpretation(es_label=es_label, es_value=es)
-            ppred_0 = test.loc[f'{predictor[0]}', 'p-unc']
-            ppred_1 = test.loc[f'{predictor[1]}', 'p-unc']
+            ppred_0 = test.loc[f'{predictor[0]}', 'p_unc']
+            ppred_1 = test.loc[f'{predictor[1]}', 'p_unc']
             
         if len(df[predictor[0]]) >= len(df[predictor[1]]):
             x_predictor = predictor[0]
@@ -554,8 +560,8 @@ def auto_stats(df,
                       ax=ax, 
                       order=order, 
                       errorbar= 'sd',
-                      errwidth=1.5, 
                       capsize=0.05,
+                      err_kws={'linewidth': 1.5}
                       )
         title = f'Interaction {predictor[0]} * {predictor[1]} on {outcome_clean_label} : {pstars} \n {test_type} : pcorr {readable_p}, {es_label} : {es} ({es_inter}) \n p-{predictor[0]}{readable_pval(ppred_0)} , p-{predictor[1]}{readable_pval(ppred_1)}'
         ax.set_title(title, fontsize = title_fontsize)
@@ -576,7 +582,8 @@ def auto_stats(df,
             star = pval_stars(pval)
             xticklabels.append(f'{level}\n{hue_predictor} : {star}')
 
-        ax.set_xticklabels(xticklabels, fontsize = xticklabels_fontsize)
+        # ax.set_xticklabels(xticklabels, fontsize = xticklabels_fontsize)
+        ax.set_xticks(ticks=ax.get_xticks(), labels = xticklabels, fontsize = xticklabels_fontsize)
 
         legendlabels = []
         for i, level in enumerate(df[hue_predictor].unique()):
@@ -701,9 +708,9 @@ def permutation(df, predictor, outcome , design = 'within' , subject = None, n_r
         p = permutation_test_homemade(x=x,y=y, design=design, n_resamples=n_resamples)
         pvals.append(p)
     df_return = pd.DataFrame(pairs, columns = ['A','B'])
-    df_return['p-unc'] = pvals
+    df_return['p_unc'] = pvals
     rej , pcorrs = pg.multicomp(pvals, method = 'holm')
-    df_return['p-corr'] = pcorrs
+    df_return['p_corr'] = pcorrs
     return df_return
 
 def reorder_df(df, colname, order):
@@ -743,7 +750,7 @@ def lmm(df, predictor, outcome, subject, order=None):
 
     fig, ax = plt.subplots()
     if isinstance(predictor, str):
-        sns.boxplot(data=df, x = predictor, y = outcome, hue = predictor, ax=ax)
+        sns.boxplot(data=df, x = predictor, y = outcome, ax=ax , hue = predictor)
     elif isinstance(predictor, list):
         sns.pointplot(data=df, x = predictor[0], y = outcome, hue = predictor[1],ax=ax)
     ax.set_title(formula)
@@ -757,8 +764,7 @@ def lmm(df, predictor, outcome, subject, order=None):
         else:
             tick = f"{cond} \n {dict_pval_stars[cond]} \n {dict_coefs[cond]}"
         ticks.append(tick)
-    ax.set_xticks(range(df[predictor].unique().size))
-    ax.set_xticklabels(ticks)
+    ax.set_xticks(range(df[predictor].unique().size), labels = ticks)
     plt.show()
     
     return mdf
@@ -776,10 +782,13 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     return ci
 
 
-def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_ax_only = True):
+def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_res=False):
     if ax is None:
         fig, ax = plt.subplots()
 
+    if df[[xlabel, ylabel]].isna().any().any():
+        print(df[[xlabel, ylabel]].isna().sum().sum(), 'Nan values are removed (row-wise)')
+        df = df[[xlabel, ylabel]].dropna()
     x = df[xlabel]
     y = df[ylabel]
 
@@ -802,15 +811,14 @@ def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', co
     ax.plot(x, intercept + slope*x, color = color_regline)
     ax.scatter(x = x, y=y, color = color_scatter, label = legend_label, alpha = alpha_scatter)
 
-    # ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
-    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {round(pval_corr, 3)} ({stars_corr})\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {round(pval_reg, 3)} ({stars_reg})')
+    ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    if return_ax_only:
+
+    if not return_res:
         return ax
     else:
-        dict_res = {'slope':slope , 'R':r, 'R²':rsquare}
-        return ax, dict_res
+        return ax, {'r':r, 'p':pval_corr}
 
 def get_descriptive_stats(df, predictor, outcome):
     groups = df[predictor].unique()
@@ -826,6 +834,7 @@ def get_descriptive_stats(df, predictor, outcome):
         descriptive_stats.loc['median',group] = med
         descriptive_stats.loc['mad',group] = mad
         descriptive_stats.loc['CI95',group] = list(pd.Series(confidence_interval(x)).round(2))
+        descriptive_stats.loc['IQR',group] = iqr_interval(x, round_ = 2)
     return descriptive_stats.T
 
 def auto_stats_summary(df, predictor, outcome, design, subject=None):
@@ -835,8 +844,8 @@ def auto_stats_summary(df, predictor, outcome, design, subject=None):
     test = tests['pre']
     
     
-    pval_labels = {'t-test_ind':'p-val','t-test_paired':'p-val','anova':'p-unc','rm_anova':'p-unc','Mann-Whitney':'p-val','Wilcoxon':'p-val', 'Kruskal':'p-unc', 'friedman':'p-unc'}
-    esize_labels = {'t-test_ind':'cohen-d','t-test_paired':'cohen-d','anova':'np2','rm_anova':'np2','Mann-Whitney':'CLES','Wilcoxon':'CLES', 'Kruskal':None, 'friedman':None}
+    pval_labels = {'t-test_ind':'p_val','t-test_paired':'p_val','anova':'p_unc','rm_anova':'p_unc','Mann-Whitney':'p_val','Wilcoxon':'p_val', 'Kruskal':'p_unc', 'friedman':'p_unc'}
+    esize_labels = {'t-test_ind':'cohen_d','t-test_paired':'cohen_d','anova':'np2','rm_anova':'np2','Mann-Whitney':'CLES','Wilcoxon':'CLES', 'Kruskal':None, 'friedman':None}
     
     if test == 't-test_ind':
         groups = list(set(df[predictor]))
@@ -895,29 +904,47 @@ def save_auto_stats_summary(stats_dict, path):
         v.to_excel(writer, sheet_name = k)
     writer.close()
 
-def stats_quali_quali(data, predictor, outcome, show = True, save = None):
-    counts = data[predictor].value_counts(ascending = True)
+def format_pvalue(p):
+    """Format a p_value for display in a figure title."""
+    if p < 0.001:
+        return "p < 0.001"
+    elif p < 0.01:
+        return "p < 0.01"
+    elif p < 0.05:
+        return "p < 0.05"
+    else:
+        return f"p = {round(p, 3)}"
     
+def stats_quali_quali(data, predictor, outcome, show = True, save = None, figsize = None, palette = None, alpha = 1, letter = None):
+    data = data.dropna(subset = [predictor,outcome])   
     expected, observed, stats = pg.chi2_independence(data, x=predictor, y=outcome)
     observed = pd.crosstab(index =data[predictor] , columns = data[outcome])
     p = stats['pval'].mean()
+    formatted_p = format_pvalue(p)
 
     if show:
-        fig, axs = plt.subplots(ncols = 2, figsize = (12,4), sharey = True)
-        suptitle = f'Effect of {predictor} on {outcome} : p = {round(p, 5)}'
-        fig.suptitle(suptitle, fontsize = 15, y = 1.05)
-        fig.subplots_adjust(wspace = 0)
+        if figsize is None:
+            figsize = (12,4)
+        fig, axs = plt.subplots(ncols = 2, figsize = figsize, sharey = True)
+        suptitle = f'Contingency analysis:\n{predictor} x {outcome} (Chi² test, {formatted_p})'
+        fig.suptitle(suptitle, fontsize = 15, y = 1.15)
+        fig.subplots_adjust(wspace = 0.)
         
         ax = axs[0]
-        observed.round(2).plot.bar(ax=ax, edgecolor = 'k')
-        ax.set_title(f'Observed')
+        # observed.round(2).plot.bar(ax=ax, edgecolor = 'k')
+        sns.barplot(data = observed.unstack().reset_index().round(0), x = predictor ,hue = outcome, y = 0, palette = palette, edgecolor = 'k', ax=ax, alpha=alpha)
+        ax.set_title(f'Observed Count')
         xticklabels = []
         for level in observed.index:
             N = int(observed.sum(axis = 1).loc[level])
             xticklabel = f'{level}\nN={N}'
             xticklabels.append(xticklabel)
-        ax.set_xticklabels(xticklabels, rotation = 0)
+        # ax.set_xticklabels(xticklabels, rotation = 0)
+        ax.set_xticks(ticks = ax.get_xticks(), labels = xticklabels)
         ax.set_xlabel(f'{predictor}\nN={data[predictor].notna().sum()}')
+
+        if not letter is None:
+            ax.text(x = -0.2, y = 1.3, s = letter, fontsize = 20, transform = ax.transAxes)
     
         legendlabels = []
         for level in observed.columns:
@@ -925,20 +952,24 @@ def stats_quali_quali(data, predictor, outcome, show = True, save = None):
             legendlabel = f'{level}\nN={N}'
             legendlabels.append(legendlabel)
         handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles, legendlabels, title = outcome)
+        ax.legend(handles, legendlabels, title = outcome, loc = 'best', fontsize = 8)
+        ax.set_ylabel('Count')
     
         
         ax = axs[1]
-        expected.round(2).plot.bar(ax=ax, edgecolor = 'k', alpha = 0.6)
-        ax.set_title('Expected')
+        # expected.round(2).plot.bar(ax=ax, edgecolor = 'k', alpha = 0.6)
+        sns.barplot(data = expected.unstack().reset_index().round(0), x = predictor ,hue = outcome, y = 0, palette = palette, edgecolor = 'k', ax=ax, alpha=alpha - 0.3)
+        ax.set_title('Expected Count')
+        ax.legend(loc = 'best', fontsize = 8)
         
         for ax, df in zip(axs, [observed, expected]):
             for bar in ax.containers:
                 ax.bar_label(bar)
-
+            ax.set_xticks(ax.get_xticks(), ax.get_xticklabels(), rotation = 0)
+        
         if not save is None:
             fig.savefig(save, dpi = 500, bbox_inches = 'tight')
     
-        plt.show()
+        # plt.show()
 
-    return p
+    return fig, p
