@@ -4,6 +4,19 @@ from scipy import signal
 from scipy import fftpack
 import xarray as xr
 import pandas as pd
+
+def notch_filter(sig, srate, bandcut = (48,52), order = 4, ftype = 'butter', axis = -1):
+
+    """
+    IIR-Filter to notch/cut 50 Hz of signal
+    """
+
+    band = [bandcut[0], bandcut[1]]
+    Wn = [e / srate * 2 for e in band]
+    sos = signal.iirfilter(order, Wn, analog=False, btype='bandstop', ftype=ftype, output='sos')
+    filtered_sig = signal.sosfiltfilt(sos, sig, axis=axis)
+
+    return filtered_sig
  
 def get_wsize(srate, lowest_freq , n_cycles=5):
     nperseg = ( n_cycles / lowest_freq) * srate
