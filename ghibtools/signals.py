@@ -5,6 +5,16 @@ from scipy import fftpack
 import xarray as xr
 import pandas as pd
 
+def detect_cross(sig, threshold, force_up_cross_first = True):
+    up_cross_index, = np.where((sig[:-1] <=threshold) & (sig[1:] >threshold)) 
+    down_cross_index, = np.where((sig[:-1] >=threshold) & (sig[1:] <threshold)) 
+    if force_up_cross_first:
+        if up_cross_index[0] > down_cross_index[0]: # first point detected has to be a rise
+            down_cross_index = down_cross_index[1:] # so remove the first decay if is before first rise
+        if up_cross_index[-1] > down_cross_index[-1]: # last point detected has to be a decay
+            up_cross_index = up_cross_index[:-1] # so remove the last rise if is after last decay
+    return {'up_cross_index':up_cross_index, 'down_cross_index':down_cross_index}
+
 def notch_filter(sig, srate, bandcut = (48,52), order = 4, ftype = 'butter', axis = -1):
 
     """
