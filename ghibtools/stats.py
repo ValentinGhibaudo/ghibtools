@@ -819,8 +819,10 @@ def stats_quantitative(x, y, xlabel=None, ylabel=None, ax=None, corr_method = 's
     ax.scatter(x = x, y=y, color = color_scatter, label = legend_label, alpha = alpha_scatter)
 
     ax.set_title(f'Correlation ({corr_method}) : {round(r, 3)}, p : {stars_corr}\nSlope : {round(slope, 2)} - R² : {round(rsquare, 3)}, p : {stars_reg}')
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    if not xlabel is None:
+        ax.set_xlabel(xlabel)
+    if not ylabel is None:
+        ax.set_ylabel(ylabel)
 
     if not return_res:
         return ax
