@@ -782,15 +782,22 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
     return ci
 
 
-def stats_quantitative(df, xlabel, ylabel, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_res=False):
+def stats_quantitative(x, y, xlabel=None, ylabel=None, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_res=False):
+    if isinstance(x, pd.Series):
+        x = x.values
+    if isinstance(x, pd.Series):
+        y = y.values
+
+    assert x.size == y.size, 'x and y sizes are not the same'
+    
+    if np.any(np.isnan(x)) or np.any(np.isnan(y)):
+        keep = ~np.isnan(x) & ~np.isnan(y)
+        x = x[keep]
+        y = y[keep]
+        print(np.sum(keep), 'Nan values are removed (row-wise)')
+
     if ax is None:
         fig, ax = plt.subplots()
-
-    if df[[xlabel, ylabel]].isna().any().any():
-        print(df[[xlabel, ylabel]].isna().sum().sum(), 'Nan values are removed (row-wise)')
-        df = df[[xlabel, ylabel]].dropna()
-    x = df[xlabel]
-    y = df[ylabel]
 
     if corr_method == 'pearson':
         res_corr = stats.pearsonr(x, y)
