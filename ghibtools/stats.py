@@ -829,6 +829,68 @@ def stats_quantitative(x, y, xlabel=None, ylabel=None, ax=None, corr_method = 's
     else:
         return ax, {'r':r, 'p':pval_corr}
 
+def stats_quantitative_hue(x, y, hue_labels, xlabel=None, ylabel=None, ax=None, corr_method = 'spearman', palette = 'nipy_spectral', alpha_scatter = 0.2, alpha_line = 0.5, hue_legend = True, return_res=False):
+    if isinstance(x, pd.Series):
+        x = x.values
+    if isinstance(x, pd.Series):
+        y = y.values
+    if isinstance(hue_labels, pd.Series):
+        hue_labels = hue_labels.values
+
+    assert x.size == y.size, 'x and y sizes are not the same'
+    assert hue_labels.size == y.size, 'hue_labels and xy sizes are not the same'
+    
+    if np.any(np.isnan(x)) or np.any(np.isnan(y)):
+        keep = ~np.isnan(x) & ~np.isnan(y)
+        x = x[keep]
+        y = y[keep]
+        hue_labels = hue_labels[keep]
+        print(np.sum(keep), 'Nan values are removed (row-wise)')
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    hue_unique_labels = np.unique(hue_labels)
+    cmap = plt.get_cmap(palette)
+    colors = cmap(np.linspace(0, 1, len(hue_unique_labels)))
+    
+    res = []
+    for i, hue_label in enumerate(hue_unique_labels):
+        hue_mask = hue_labels == hue_label
+        x_hue, y_hue = x[hue_mask], y[hue_mask]
+
+        if corr_method == 'pearson':
+            res_corr = stats.pearsonr(x_hue, y_hue)
+            r = res_corr.statistic
+        elif corr_method == 'spearman':
+            res_corr = stats.spearmanr(x_hue, y_hue)
+            r = res_corr.correlation
+        pval_corr = res_corr.pvalue
+        stars_corr = pval_stars(pval_corr)
+
+        res_reg = stats.linregress(x_hue, y_hue)
+        intercept = res_reg.intercept
+        slope = res_reg.slope
+        rsquare = res_reg.rvalue **2
+        pval_reg = res_reg.pvalue
+        stars_reg = pval_stars(pval_reg)
+    
+        ax.plot(x_hue, intercept + slope*x_hue, color = colors[i], alpha=alpha_line)
+        ax.scatter(x = x_hue, y=y_hue, color = colors[i], label = hue_label, alpha = alpha_scatter)
+
+        res_row = dict(label = hue_label, r = r,  pcorr = pval_corr, scorr = stars_corr, r2 = rsquare, slope = slope, intercept = intercept, preg = pval_reg, sreg=stars_reg)
+        res.append(res_row)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    if hue_legend:
+        ax.legend(fontsize = 8)
+
+    if not return_res:
+        return ax
+    else:
+        return ax, res
+
 def get_descriptive_stats(df, predictor, outcome):
     groups = df[predictor].unique()
     descriptive_stats = pd.DataFrame(columns = groups, index = ['N','mean','sd','sem','median','mad','CI95'])
