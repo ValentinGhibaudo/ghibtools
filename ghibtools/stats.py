@@ -783,13 +783,17 @@ def confidence_interval(x, confidence = 0.95, verbose = False):
 
 
 def stats_quantitative(x, y, xlabel=None, ylabel=None, ax=None, corr_method = 'spearman', color_scatter = None, alpha_scatter = 0.6, legend_label = None, color_regline = 'r', return_res=False):
+    assert x.size == y.size, 'x and y sizes are not the same'
+
     if isinstance(x, pd.Series):
+        if xlabel is None:
+            xlabel = x.name
         x = x.values
-    if isinstance(x, pd.Series):
+    if isinstance(y, pd.Series):
+        if ylabel is None:
+            ylabel = y.name
         y = y.values
 
-    assert x.size == y.size, 'x and y sizes are not the same'
-    
     if np.any(np.isnan(x)) or np.any(np.isnan(y)):
         keep = ~np.isnan(x) & ~np.isnan(y)
         x = x[keep]
