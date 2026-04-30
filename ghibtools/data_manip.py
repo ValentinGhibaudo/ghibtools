@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import string
+import matplotlib.pyplot as plt
 
 def midx_da(da , dim , midx_labels, midx_coords):
     midx = pd.MultiIndex.from_arrays(midx_coords, names=midx_labels)
@@ -41,3 +42,8 @@ def time_ratio_year(num, den, mode = 'from'):
         ratio = num / den
     ind_date = int(date_vector.size*(ratio))
     return date_vector[ind_date]
+
+def map_colors_elements(elements, palette = 'viridis'):
+    cmap = plt.get_cmap(palette)
+    colors = cmap(np.linspace(0, 1, len(elements)))
+    return {e:color for e,color in zip(elements,colors)}
