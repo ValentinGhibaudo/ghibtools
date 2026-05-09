@@ -834,14 +834,17 @@ def stats_quantitative(x, y, xlabel=None, ylabel=None, ax=None, corr_method = 's
         return ax, {'r':r, 'p':pval_corr}
 
 def stats_quantitative_hue(x, y, hue_labels, xlabel=None, ylabel=None, ax=None, corr_method = 'spearman', palette = 'nipy_spectral', alpha_scatter = 0.2, alpha_line = 0.5, hue_legend = True, return_res=False):
-    if isinstance(x, pd.Series):
-        x = x.values
-    if isinstance(x, pd.Series):
-        y = y.values
-    if isinstance(hue_labels, pd.Series):
-        hue_labels = hue_labels.values
-
     assert x.size == y.size, 'x and y sizes are not the same'
+
+    if isinstance(x, pd.Series):
+        if xlabel is None:
+            xlabel = x.name
+        x = x.values
+    if isinstance(y, pd.Series):
+        if ylabel is None:
+            ylabel = y.name
+        y = y.values
+
     assert hue_labels.size == y.size, 'hue_labels and xy sizes are not the same'
     
     if np.any(np.isnan(x)) or np.any(np.isnan(y)):
